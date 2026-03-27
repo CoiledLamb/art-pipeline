@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Local Uploader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Drag & Drop Uploader</h1>
+
+  <div id="drop-zone">
+    Drop your images here
+  </div>
+
+  <label for="category">Category:</label>
+  <select id="category">
+    <option value="figures">Figures</option>
+    <option value="hands">Hands</option>
+    <option value="artwork">General Artwork</option>
+    <option value="private">Private (won't upload)</option>
+  </select>
+
+  <div id="preview"></div>
+
+  <button id="upload-btn">Process & Upload</button>
+
+  <script src="uploader.js"></script>
+</body>
+</html>

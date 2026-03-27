@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+Thumbs.db
+
+# local/generated content
+processed/
+incoming/
+
+# secrets
+.env

@@ -1,0 +1,14 @@
+{
+  "name": "art-pipeline",
+  "version": "1.0.0",
+  "main": "pipeline.js",
+  "scripts": {
+    "start": "node pipeline.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "neocities": "^0.0.3",
+    "sharp": "^0.33.0"
+  }
+}

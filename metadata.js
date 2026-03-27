@@ -14,19 +14,64 @@ const {
   isSupportedInputFile,
   isPrivateCategory,
   isValidCategory,
+  extractDateData,
   buildFileMetadata,
 } = require("./metadata");
-const {
-  readGalleryJSON,
-  galleryEntryExists,
-  addGalleryEntry,
-} = require("./gallery");
 
 const NEOCITIES_API_KEY = config.neocitiesApiKey;
 
 if (!NEOCITIES_API_KEY) {
   console.error("❌ Missing NEOCITIES_API_KEY in .env");
   process.exit(1);
+}
+
+// --------------------------
+// GALLERY JSON
+// --------------------------
+function readGalleryJSON() {
+  if (!fs.existsSync(config.galleryJsonPath)) {
+    return {
+      figures: [],
+      hands: [],
+      general: [],
+    };
+  }
+
+  const data = JSON.parse(fs.readFileSync(config.galleryJsonPath, "utf8"));
+
+  for (const key of config.validCategories) {
+    if (!Array.isArray(data[key])) {
+      data[key] = [];
+    }
+  }
+
+  return data;
+}
+
+function updateGalleryJSON(category, fileName) {
+  const data = readGalleryJSON();
+
+  const alreadyExists = data[category].some(
+    (item) => item.file && item.file.toLowerCase() === fileName.toLowerCase(),
+  );
+
+  if (alreadyExists) {
+    console.log("⚠️ Already in gallery.json");
+    return false;
+  }
+
+  const dateData = extractDateData(fileName);
+
+  const entry = {
+    file: fileName,
+    date: dateData ? dateData.iso : null,
+    display: dateData ? dateData.display : fileName,
+  };
+
+  data[category].push(entry);
+  fs.writeFileSync(config.galleryJsonPath, JSON.stringify(data, null, 2));
+  console.log(" gallery.json updated");
+  return true;
 }
 
 // --------------------------
@@ -53,7 +98,7 @@ async function listRemoteFolder(category) {
 
     return result.files;
   } catch (err) {
-    console.error(`❌ [${category}] remote folder list failed:`, err);
+    console.error("Remote folder list failed:", err);
     return [];
   }
 }
@@ -73,6 +118,7 @@ async function uploadFile(localPath, category, fileName) {
   const blob = new Blob([fileBuffer], { type: "image/webp" });
   const form = new FormData();
 
+  // Per Neocities docs, the multipart parameter name should be the remote filename/path.
   form.append(remotePath, blob, fileName);
 
   console.log(`⬆️ Upload target: ${remotePath}`);
@@ -95,6 +141,8 @@ async function uploadFile(localPath, category, fileName) {
     }
 
     const files = await listRemoteFolder(category);
+    console.log("VERIFY RESPONSE:", { result: "success", files });
+
     const found = files.some((file) => file.path === remotePath);
 
     if (found) {
@@ -107,7 +155,7 @@ async function uploadFile(localPath, category, fileName) {
     );
     return false;
   } catch (err) {
-    console.error(`❌ [${fileName}] upload failed:`, err);
+    console.error("API Error:", err);
     return false;
   }
 }
@@ -117,6 +165,7 @@ async function uploadGalleryJSON() {
   const blob = new Blob([fileBuffer], { type: "application/json" });
   const form = new FormData();
 
+  // Same Neocities rule: parameter name is the destination filename.
   form.append("gallery.json", blob, "gallery.json");
 
   try {
@@ -138,47 +187,22 @@ async function uploadGalleryJSON() {
 
     return true;
   } catch (err) {
-    console.error("❌ gallery.json upload failed:", err);
+    console.error("Gallery JSON upload failed:", err);
     return false;
   }
 }
 
 // --------------------------
-// LOCAL PROCESSING
+// MAIN PROCESS
 // --------------------------
-async function ensureProcessedFile(sourcePath, outputPath, fileName) {
-  if (fs.existsSync(outputPath)) {
-    return false;
-  }
+async function processFile(filePath) {
+  if (!isSupportedInputFile(filePath)) return;
 
-  await sharp(sourcePath)
-    .webp({ quality: config.webpQuality })
-    .toFile(outputPath);
-  console.log(`✅ [${fileName}] converted`);
-  return true;
-}
-
-// --------------------------
-// STATE + RECONCILIATION
-// --------------------------
-async function getFileState(category, outputName, outputPath) {
-  const gallery = readGalleryJSON();
-
-  return {
-    processed: fs.existsSync(outputPath),
-    remote: await remoteFileExists(category, outputName),
-    gallery: galleryEntryExists(gallery, category, outputName),
-  };
-}
-
-async function reconcileFile(sourcePath) {
-  if (!isSupportedInputFile(sourcePath)) return;
-
-  const meta = buildFileMetadata(sourcePath);
+  const meta = buildFileMetadata(filePath);
   const { baseName, category, outputName } = meta;
 
   if (isPrivateCategory(category)) {
-    console.log("⏭️ Skipping private file");
+    console.log(" Skipping private file");
     return;
   }
 
@@ -187,80 +211,66 @@ async function reconcileFile(sourcePath) {
     return;
   }
 
+  const remotePath = getRemoteImagePath(category, outputName);
+
+  if (!config.allowDuplicates) {
+    const existsRemotely = await remoteFileExists(category, outputName);
+    if (existsRemotely) {
+      console.log(`⚠️ Already exists on live site: ${remotePath}`);
+      return;
+    }
+  }
+
   const outputDir = getOutputDir(category);
   ensureDir(outputDir);
 
   const outputPath = getOutputPath(category, outputName);
-  const remotePath = getRemoteImagePath(category, outputName);
 
-  console.log(`\n🔎 Reconciling ${baseName}`);
-  console.log(`   category: ${category}`);
-  console.log(`   remote:   ${remotePath}`);
+  if (!config.allowDuplicates && fs.existsSync(outputPath)) {
+    console.log("⚠️ Already processed locally");
+    return;
+  }
+
+  console.log(` Processing ${baseName}`);
+  console.log(`️ Category: ${category}`);
+  console.log(` Remote path will be: ${remotePath}`);
 
   try {
-    let state = await getFileState(category, outputName, outputPath);
+    await sharp(filePath)
+      .webp({ quality: config.webpQuality })
+      .toFile(outputPath);
+    console.log("✅ Converted");
 
-    console.log(
-      `   state: processed=${state.processed} remote=${state.remote} gallery=${state.gallery}`,
-    );
+    let uploaded = false;
 
-    if (!state.processed) {
-      await ensureProcessedFile(sourcePath, outputPath, outputName);
-      state.processed = true;
+    if (config.safeMode) {
+      console.log(" SAFE MODE: skipping upload");
+      uploaded = true;
+    } else {
+      uploaded = await uploadFile(outputPath, category, outputName);
     }
 
-    if (!state.remote) {
-      if (config.safeMode) {
-        console.log(`🧪 [${outputName}] SAFE MODE: skipping image upload`);
-      } else {
-        const uploaded = await uploadFile(outputPath, category, outputName);
-        if (!uploaded) {
-          throw new Error(`image upload failed for ${outputName}`);
-        }
-        state.remote = true;
+    if (uploaded) {
+      const jsonChanged = updateGalleryJSON(category, outputName);
+
+      if (!config.safeMode && jsonChanged) {
+        await uploadGalleryJSON();
       }
-    }
-
-    if (!state.gallery) {
-      const result = addGalleryEntry(category, outputName);
-
-      if (result.changed) {
-        console.log(`✅ [${outputName}] gallery.json updated`);
-
-        if (config.safeMode) {
-          console.log(
-            `🧪 [${outputName}] SAFE MODE: skipping gallery.json upload`,
-          );
-        } else {
-          const uploadedGallery = await uploadGalleryJSON();
-          if (!uploadedGallery) {
-            throw new Error(
-              `gallery.json upload failed after adding ${outputName}`,
-            );
-          }
-        }
-      }
-
-      state.gallery = true;
-    }
-
-    if (state.processed && state.remote && state.gallery) {
-      console.log(`✅ [${outputName}] fully synced`);
     }
   } catch (err) {
-    console.error(`❌ [${outputName}] reconcile failed:`, err.message);
+    console.error("❌ Error:", err);
   }
 }
 
 // --------------------------
 // WATCHER
 // --------------------------
-console.log("👀 Watching for files...");
+console.log(" Watching for files...");
 chokidar
   .watch(config.inputDir, {
     ignoreInitial: true,
     depth: 2,
   })
   .on("add", (filePath) => {
-    reconcileFile(filePath);
+    processFile(filePath);
   });

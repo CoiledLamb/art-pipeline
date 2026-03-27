@@ -1,9 +1,11 @@
 {
   "name": "art-pipeline",
   "version": "1.0.0",
-  "main": "pipeline.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node pipeline.js",
+    "start": "node index.js watch",
+    "watch": "node index.js watch",
+    "sync": "node index.js sync",
     "dev": "node server.js"
   },
   "dependencies": {

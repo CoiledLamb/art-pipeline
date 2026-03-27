@@ -119,8 +119,274 @@
       "file": "figures 32726.webp",
       "date": "2026-03-27",
       "display": "3/27/26"
+    },
+    {
+      "file": "figures 32326.webp",
+      "date": "2026-03-23",
+      "display": "3/23/26"
+    },
+    {
+      "file": "figures 32526.webp",
+      "date": "2026-03-25",
+      "display": "3/25/26"
+    },
+    {
+      "file": "figures 32626.webp",
+      "date": "2026-03-26",
+      "display": "3/26/26"
+    },
+    {
+      "file": "cleo comiission.webp",
+      "date": null,
+      "display": "cleo comiission.webp"
+    },
+    {
+      "file": "figures 21626.webp",
+      "date": "2026-02-16",
+      "display": "2/16/26"
+    },
+    {
+      "file": "figures 21826.webp",
+      "date": "2026-02-18",
+      "display": "2/18/26"
+    },
+    {
+      "file": "figures 22026.webp",
+      "date": "2026-02-20",
+      "display": "2/20/26"
+    },
+    {
+      "file": "figures 22126.webp",
+      "date": "2026-02-21",
+      "display": "2/21/26"
+    },
+    {
+      "file": "figures 22226.webp",
+      "date": "2026-02-22",
+      "display": "2/22/26"
+    },
+    {
+      "file": "figures 22426.webp",
+      "date": "2026-02-24",
+      "display": "2/24/26"
+    },
+    {
+      "file": "figures 22526.webp",
+      "date": "2026-02-25",
+      "display": "2/25/26"
+    },
+    {
+      "file": "figures 22626.webp",
+      "date": "2026-02-26",
+      "display": "2/26/26"
+    },
+    {
+      "file": "figures 22726.webp",
+      "date": "2026-02-27",
+      "display": "2/27/26"
+    },
+    {
+      "file": "figures 31126.webp",
+      "date": "2026-03-11",
+      "display": "3/11/26"
+    },
+    {
+      "file": "figures 31226.webp",
+      "date": "2026-03-12",
+      "display": "3/12/26"
+    },
+    {
+      "file": "figures 31326.webp",
+      "date": "2026-03-13",
+      "display": "3/13/26"
+    },
+    {
+      "file": "figures 31526.webp",
+      "date": "2026-03-15",
+      "display": "3/15/26"
+    },
+    {
+      "file": "figures 31626.webp",
+      "date": "2026-03-16",
+      "display": "3/16/26"
+    },
+    {
+      "file": "figures 31726.webp",
+      "date": "2026-03-17",
+      "display": "3/17/26"
+    },
+    {
+      "file": "figures 31826.webp",
+      "date": "2026-03-18",
+      "display": "3/18/26"
+    },
+    {
+      "file": "figures 31926.webp",
+      "date": "2026-03-19",
+      "display": "3/19/26"
+    },
+    {
+      "file": "figures 32026.webp",
+      "date": "2026-03-20",
+      "display": "3/20/26"
+    },
+    {
+      "file": "figures 3226.webp",
+      "date": null,
+      "display": "figures 3226.webp"
+    },
+    {
+      "file": "figures 3426.webp",
+      "date": null,
+      "display": "figures 3426.webp"
+    },
+    {
+      "file": "figures 3526.webp",
+      "date": null,
+      "display": "figures 3526.webp"
+    },
+    {
+      "file": "figures 3626.webp",
+      "date": null,
+      "display": "figures 3626.webp"
+    },
+    {
+      "file": "figures 3726.webp",
+      "date": null,
+      "display": "figures 3726.webp"
+    },
+    {
+      "file": "figures 3826.webp",
+      "date": null,
+      "display": "figures 3826.webp"
+    },
+    {
+      "file": "figures 3926.webp",
+      "date": null,
+      "display": "figures 3926.webp"
+    },
+    {
+      "file": "figures21826.webp",
+      "date": null,
+      "display": "figures21826.webp"
+    },
+    {
+      "file": "figures22226.webp",
+      "date": null,
+      "display": "figures22226.webp"
+    },
+    {
+      "file": "figures 021626.webp",
+      "date": "2026-02-16",
+      "display": "2/16/26"
+    },
+    {
+      "file": "figures 021826.webp",
+      "date": "2026-02-18",
+      "display": "2/18/26"
+    },
+    {
+      "file": "figures 032226.webp",
+      "date": "2026-03-22",
+      "display": "3/22/26"
+    },
+    {
+      "file": "figures 032326.webp",
+      "date": "2026-03-23",
+      "display": "3/23/26"
+    },
+    {
+      "file": "figures 032526.webp",
+      "date": "2026-03-25",
+      "display": "3/25/26"
+    },
+    {
+      "file": "figures 032626.webp",
+      "date": "2026-03-26",
+      "display": "3/26/26"
+    },
+    {
+      "file": "figures 032726.webp",
+      "date": "2026-03-27",
+      "display": "3/27/26"
     }
   ],
-  "hands": [],
+  "hands": [
+    {
+      "file": "hands 032226.webp",
+      "date": "2026-03-22",
+      "display": "03/22/26"
+    },
+    {
+      "file": "hands 22126.webp",
+      "date": "2026-02-21",
+      "display": "2/21/26"
+    },
+    {
+      "file": "hands 22826.webp",
+      "date": "2026-02-28",
+      "display": "2/28/26"
+    },
+    {
+      "file": "hands 3126.webp",
+      "date": null,
+      "display": "hands 3126.webp"
+    },
+    {
+      "file": "hands 31426.webp",
+      "date": "2026-03-14",
+      "display": "3/14/26"
+    },
+    {
+      "file": "hands 31526.webp",
+      "date": "2026-03-15",
+      "display": "3/15/26"
+    },
+    {
+      "file": "hands 32126.webp",
+      "date": "2026-03-21",
+      "display": "3/21/26"
+    },
+    {
+      "file": "hands 022226.webp",
+      "date": "2026-02-22",
+      "display": "2/22/26"
+    },
+    {
+      "file": "hands 022126.webp",
+      "date": "2026-02-21",
+      "display": "2/21/26"
+    },
+    {
+      "file": "hands 022826.webp",
+      "date": "2026-02-28",
+      "display": "2/28/26"
+    },
+    {
+      "file": "hands 031226.webp",
+      "date": "2026-03-12",
+      "display": "3/12/26"
+    },
+    {
+      "file": "hands 031426.webp",
+      "date": "2026-03-14",
+      "display": "3/14/26"
+    },
+    {
+      "file": "hands 031526.webp",
+      "date": "2026-03-15",
+      "display": "3/15/26"
+    },
+    {
+      "file": "hands 032126.webp",
+      "date": "2026-03-21",
+      "display": "3/21/26"
+    },
+    {
+      "file": "hands 030126.webp",
+      "date": "2026-03-01",
+      "display": "3/1/26"
+    }
+  ],
   "general": []
 }

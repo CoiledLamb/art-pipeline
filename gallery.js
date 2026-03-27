@@ -1,5 +1,4 @@
 const fs = require("fs");
-const path = require("path");
 const config = require("./config");
 const { extractDateData } = require("./metadata");
 
@@ -45,12 +44,12 @@ function readGalleryJSON() {
       const repaired = stripTrailingCommas(raw);
       const parsed = tryParseGallery(repaired);
 
-      // Persist the repaired version so future runs are clean.
       writeGalleryJSON(parsed);
 
       console.warn(
-        "⚠️ gallery.json had invalid trailing commas and was repaired",
+        "[warn] gallery.json had invalid trailing commas and was repaired",
       );
+
       return normalizeGalleryShape(parsed);
     } catch (repairErr) {
       const err = new Error(
@@ -74,28 +73,75 @@ function writeGalleryJSON(data) {
   fs.renameSync(tempPath, config.galleryJsonPath);
 }
 
-function galleryEntryExists(data, category, fileName) {
-  return data[category].some(
-    (item) => item?.file && item.file.toLowerCase() === fileName.toLowerCase(),
-  );
+function normalizeIncomingEntry(entryOrFileName) {
+  if (typeof entryOrFileName === "string") {
+    const dateData = extractDateData(entryOrFileName);
+
+    return {
+      file: entryOrFileName,
+      date: dateData ? dateData.iso : null,
+      display: dateData ? dateData.display : entryOrFileName,
+    };
+  }
+
+  if (entryOrFileName && typeof entryOrFileName === "object") {
+    return {
+      file: entryOrFileName.file ?? null,
+      date: entryOrFileName.date ?? null,
+      display: entryOrFileName.display ?? entryOrFileName.file ?? null,
+    };
+  }
+
+  return {
+    file: null,
+    date: null,
+    display: null,
+  };
 }
 
-function addGalleryEntry(category, fileName) {
-  const data = readGalleryJSON();
+function galleryEntryExists(data, category, entryOrFileName) {
+  const incoming = normalizeIncomingEntry(entryOrFileName);
 
-  if (galleryEntryExists(data, category, fileName)) {
+  return data[category].some((item) => {
+    if (!item) return false;
+
+    // Primary identity: date
+    if (incoming.date && item.date && item.date === incoming.date) {
+      return true;
+    }
+
+    // Fallback identity: filename
+    if (
+      incoming.file &&
+      item.file &&
+      item.file.toLowerCase() === incoming.file.toLowerCase()
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+function addGalleryEntry(category, entryOrFileName) {
+  const data = readGalleryJSON();
+  const entry = normalizeIncomingEntry(entryOrFileName);
+
+  if (!entry.file) {
+    throw new Error("addGalleryEntry requires a valid file field");
+  }
+
+  if (galleryEntryExists(data, category, entry)) {
     return {
       changed: false,
       data,
     };
   }
 
-  const dateData = extractDateData(fileName);
-
   data[category].push({
-    file: fileName,
-    date: dateData ? dateData.iso : null,
-    display: dateData ? dateData.display : fileName,
+    file: entry.file,
+    date: entry.date,
+    display: entry.display,
   });
 
   writeGalleryJSON(data);

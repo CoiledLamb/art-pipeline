@@ -8,13 +8,23 @@ const { reconcileFile } = require("./process-file");
 const mode = process.argv[2] || "watch";
 
 async function runSync() {
-  console.log("🔄 sync mode");
-  console.log(`📂 input dir: ${config.inputDir}`);
+  console.log("sync mode");
+  console.log(`input dir: ${config.inputDir}`);
+
+  if (!fs.existsSync(config.inputDir)) {
+    console.error(`Input directory does not exist: ${config.inputDir}`);
+    process.exit(1);
+  }
 
   async function walk(dir) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
+      // 🚫 skip private folder entirely
+      if (entry.name.toLowerCase() === "private") {
+        continue;
+      }
+
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
@@ -25,17 +35,12 @@ async function runSync() {
     }
   }
 
-  if (!fs.existsSync(config.inputDir)) {
-    console.error(`❌ Input directory does not exist: ${config.inputDir}`);
-    process.exit(1);
-  }
-
   await walk(config.inputDir);
 }
 
 function runWatch() {
-  console.log("👀 watch mode");
-  console.log(`📂 input dir: ${config.inputDir}`);
+  console.log("watch mode");
+  console.log(`input dir: ${config.inputDir}`);
 
   chokidar
     .watch(config.inputDir, {
@@ -47,11 +52,16 @@ function runWatch() {
       },
     })
     .on("add", async (filePath) => {
-      console.log(`📥 detected new file: ${filePath}`);
+      // 🚫 skip anything inside /private
+      if (filePath.toLowerCase().includes(`${path.sep}private${path.sep}`)) {
+        return;
+      }
+
+      console.log(`detected new file: ${filePath}`);
       await reconcileFile(filePath);
     })
     .on("error", (err) => {
-      console.error("❌ watcher error:", err);
+      console.error("watcher error:", err);
     });
 }
 
@@ -66,13 +76,13 @@ async function main() {
     return;
   }
 
-  console.error(`❌ Unknown mode: ${mode}`);
+  console.error(`Unknown mode: ${mode}`);
   console.log("Use: node index.js watch");
   console.log("Use: node index.js sync");
   process.exit(1);
 }
 
 main().catch((err) => {
-  console.error("❌ fatal startup error:", err);
+  console.error("fatal startup error:", err);
   process.exit(1);
 });

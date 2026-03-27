@@ -14,11 +14,7 @@ const {
   isValidCategory,
   buildFileMetadata,
 } = require("./metadata");
-const {
-  readGalleryJSON,
-  galleryEntryExists,
-  addGalleryEntry,
-} = require("./gallery");
+const { readGalleryJSON, addGalleryEntry } = require("./gallery");
 const {
   remoteFileExists,
   uploadFile,
@@ -31,17 +27,22 @@ async function ensureProcessedFile(sourcePath, outputPath, fileName) {
   await sharp(sourcePath)
     .webp({ quality: config.webpQuality })
     .toFile(outputPath);
-  console.log(`✅ [${fileName}] converted`);
+
+  console.log(`[ok] converted: ${fileName}`);
   return true;
 }
 
-async function getFileState(category, outputName, outputPath) {
+async function getFileState(category, outputName, outputPath, dateData) {
   const gallery = readGalleryJSON();
+
+  const galleryExists = gallery[category].some(
+    (entry) => entry.date === dateData.iso,
+  );
 
   return {
     processed: fs.existsSync(outputPath),
     remote: await remoteFileExists(category, outputName),
-    gallery: galleryEntryExists(gallery, category, outputName),
+    gallery: galleryExists,
   };
 }
 
@@ -49,7 +50,13 @@ async function reconcileFile(sourcePath) {
   if (!isSupportedInputFile(sourcePath)) return;
 
   const meta = buildFileMetadata(sourcePath);
-  const { baseName, category, outputName } = meta;
+
+  if (!meta) {
+    console.log("[skip] invalid filename:", sourcePath);
+    return;
+  }
+
+  const { baseName, category, outputName, dateData } = meta;
 
   if (isPrivateCategory(category)) return;
   if (!isValidCategory(category)) return;
@@ -58,18 +65,19 @@ async function reconcileFile(sourcePath) {
   ensureDir(outputDir);
 
   const outputPath = getOutputPath(category, outputName);
-  const remotePath = getRemoteImagePath(category, outputName);
 
-  console.log(`\n🔎 ${baseName}`);
+  console.log(`\n[process] ${baseName}`);
 
   try {
-    let state = await getFileState(category, outputName, outputPath);
+    let state = await getFileState(category, outputName, outputPath, dateData);
 
+    // PROCESS
     if (!state.processed) {
       await ensureProcessedFile(sourcePath, outputPath, outputName);
       state.processed = true;
     }
 
+    // UPLOAD
     if (!state.remote) {
       if (!config.safeMode) {
         const ok = await uploadFile(outputPath, category, outputName);
@@ -78,8 +86,13 @@ async function reconcileFile(sourcePath) {
       state.remote = true;
     }
 
+    // GALLERY (IDENTITY-BASED)
     if (!state.gallery) {
-      const result = addGalleryEntry(category, outputName);
+      const result = addGalleryEntry(category, {
+        file: outputName,
+        date: dateData.iso,
+        display: dateData.display,
+      });
 
       if (result.changed && !config.safeMode) {
         const ok = await uploadGalleryJSON(config.galleryJsonPath);
@@ -89,9 +102,9 @@ async function reconcileFile(sourcePath) {
       state.gallery = true;
     }
 
-    console.log(`✅ synced: ${outputName}`);
+    console.log(`[ok] synced: ${outputName}`);
   } catch (err) {
-    console.error(`❌ ${outputName}:`, err.message);
+    console.error(`[error] ${outputName}:`, err.message);
   }
 }
 

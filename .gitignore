@@ -5,6 +5,7 @@ Thumbs.db
 # local/generated content
 processed/
 incoming/
+logs/
 
 # secrets
 .env

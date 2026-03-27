@@ -1,4 +1,3 @@
 @echo off
 cd /d "%~dp0"
-npm start
-pause
+powershell -ExecutionPolicy Bypass -File ".\run-pipeline.ps1"

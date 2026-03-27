@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const SAFE_MODE = false; // true = process locally only, no live uploads
 const ALLOW_DUPLICATES = false; // true = ignore duplicate protections during testing
 
@@ -9,7 +11,11 @@ const fs = require("fs");
 // --------------------------
 // CONFIG
 // --------------------------
-const NEOCITIES_API_KEY = "Your API Key Here!";
+const NEOCITIES_API_KEY = process.env.NEOCITIES_API_KEY;
+if (!NEOCITIES_API_KEY) {
+  console.error("❌ Missing NEOCITIES_API_KEY in .env");
+  process.exit(1);
+}
 
 const INPUT_DIR = path.join(__dirname, "incoming");
 const OUTPUT_DIR = path.join(__dirname, "processed");

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "chokidar": "^3.5.3",
+    "dotenv": "^17.3.1",
     "neocities": "^0.0.3",
     "sharp": "^0.33.0"
   }

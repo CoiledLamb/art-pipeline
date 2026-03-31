@@ -6,7 +6,6 @@ const {
   ensureDir,
   getOutputDir,
   getOutputPath,
-  getRemoteImagePath,
 } = require("./paths");
 const {
   isSupportedInputFile,
@@ -46,27 +45,32 @@ async function getFileState(category, outputName, outputPath, dateData) {
   };
 }
 
-// If a gallery entry already exists for the base output name, append a letter
-// suffix (b, c, d...) until we find an unused name. This supports multiple
-// drawings on the same day with the same display date.
-function resolveOutputName(category, baseOutputName) {
-  const gallery = readGalleryJSON();
-  const entries = gallery[category] || [];
-  const taken = new Set(entries.map((e) => e.file && e.file.toLowerCase()));
+// Resolve the output name for a file, using a shared in-memory registry
+// to track names claimed during this sync run. This prevents false collisions
+// when sync is run without --clean (gallery already has entries from last run).
+function resolveOutputName(category, baseOutputName, takenNames) {
+  // takenNames is a Map<category, Set<string>> passed in from the sync walk
+  if (!takenNames.has(category)) {
+    takenNames.set(category, new Set());
+  }
+  const taken = takenNames.get(category);
 
-  if (!taken.has(baseOutputName.toLowerCase())) {
+  const baseKey = baseOutputName.toLowerCase();
+  if (!taken.has(baseKey)) {
+    taken.add(baseKey);
     return baseOutputName;
   }
 
-  // baseOutputName is e.g. "figures 021826.webp"
   const ext = ".webp";
-  const stem = baseOutputName.slice(0, -ext.length); // "figures 021826"
+  const stem = baseOutputName.slice(0, -ext.length);
 
   for (let i = 1; i < 26; i++) {
     const suffix = String.fromCharCode(97 + i); // b, c, d...
     const candidate = `${stem}${suffix}${ext}`;
-    if (!taken.has(candidate.toLowerCase())) {
+    const candidateKey = candidate.toLowerCase();
+    if (!taken.has(candidateKey)) {
       console.log(`[info] same-day collision: ${baseOutputName} → ${candidate}`);
+      taken.add(candidateKey);
       return candidate;
     }
   }
@@ -74,7 +78,7 @@ function resolveOutputName(category, baseOutputName) {
   throw new Error(`Too many same-day entries for ${baseOutputName}`);
 }
 
-async function reconcileFile(sourcePath) {
+async function reconcileFile(sourcePath, takenNames) {
   if (!isSupportedInputFile(sourcePath)) return;
 
   const meta = buildFileMetadata(sourcePath);
@@ -89,8 +93,8 @@ async function reconcileFile(sourcePath) {
   if (isPrivateCategory(category)) return;
   if (!isValidCategory(category)) return;
 
-  // Resolve final output name, accounting for same-day collisions
-  const outputName = resolveOutputName(category, meta.outputName);
+  // Resolve final output name using the shared in-memory registry
+  const outputName = resolveOutputName(category, meta.outputName, takenNames);
 
   const outputDir = getOutputDir(category);
   ensureDir(outputDir);

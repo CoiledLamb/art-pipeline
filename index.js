@@ -5,12 +5,12 @@ const path = require("path");
 const config = require("./config");
 const { reconcileFile } = require("./process-file");
 const { runPrune } = require("./prune");
+const { readGalleryJSON } = require("./gallery");
 
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
 
 function cleanForSync() {
-  // Wipe processed/ subdirectories
   for (const category of config.validCategories) {
     const dir = path.join(config.outputDir, category);
     if (fs.existsSync(dir)) {
@@ -19,10 +19,25 @@ function cleanForSync() {
     }
   }
 
-  // Reset gallery.json to empty
   const empty = JSON.stringify({ figures: [], hands: [], general: [] }, null, 2) + "\n";
   fs.writeFileSync(config.galleryJsonPath, empty, "utf8");
   console.log(`[clean] reset: ${config.galleryJsonPath}`);
+}
+
+// Build the initial taken-names registry from the current gallery.
+// This ensures regular sync (without --clean) doesn't re-add entries
+// that are already correctly in the gallery, and collision detection
+// only fires for genuinely new same-day files.
+function buildTakenNames() {
+  const gallery = readGalleryJSON();
+  const takenNames = new Map();
+
+  for (const [category, entries] of Object.entries(gallery)) {
+    const taken = new Set(entries.map((e) => e.file && e.file.toLowerCase()).filter(Boolean));
+    takenNames.set(category, taken);
+  }
+
+  return takenNames;
 }
 
 async function runSync(clean = false) {
@@ -40,11 +55,13 @@ async function runSync(clean = false) {
     process.exit(1);
   }
 
+  // Build taken-names registry once before the walk
+  const takenNames = buildTakenNames();
+
   async function walk(dir) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
-      // skip private folder entirely
       if (entry.name.toLowerCase() === "private") {
         continue;
       }
@@ -54,7 +71,7 @@ async function runSync(clean = false) {
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else {
-        await reconcileFile(fullPath);
+        await reconcileFile(fullPath, takenNames);
       }
     }
   }
@@ -66,6 +83,9 @@ function runWatch() {
   console.log("watch mode");
   console.log(`input dir: ${config.inputDir}`);
 
+  // Watch mode gets its own per-session registry
+  const takenNames = buildTakenNames();
+
   chokidar
     .watch(config.inputDir, {
       ignoreInitial: true,
@@ -76,13 +96,12 @@ function runWatch() {
       },
     })
     .on("add", async (filePath) => {
-      // skip anything inside /private
       if (filePath.toLowerCase().includes(`${path.sep}private${path.sep}`)) {
         return;
       }
 
       console.log(`detected new file: ${filePath}`);
-      await reconcileFile(filePath);
+      await reconcileFile(filePath, takenNames);
     })
     .on("error", (err) => {
       console.error("watcher error:", err);

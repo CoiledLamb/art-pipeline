@@ -1,12 +1,23 @@
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
 const { uploadGalleryJSON, listRemoteFolder, deleteFiles } = require("./neocities");
-const { getRemoteImagePath } = require("./paths");
+const { getRemoteImagePath, getOutputPath } = require("./paths");
 const config = require("./config");
+const fs = require("fs");
 
-// Canonical display format is always MM/DD/YY — two digit month, two digit day, two digit year
+// Canonical display format is always MM/DD/YY
 function isCanonicalDisplay(display) {
   if (!display) return false;
   return /^\d{2}\/\d{2}\/\d{2}$/.test(display);
+}
+
+// A suffixed entry is one whose filename ends with a letter before .webp
+// e.g. "figures 021826b.webp", "figures 021826c.webp"
+// The base would be "figures 021826.webp"
+function getSuffixBase(file) {
+  if (!file) return null;
+  const match = file.match(/^(.+\s\d{6})([b-z])(\.webp)$/i);
+  if (!match) return null;
+  return `${match[1]}${match[3]}`; // e.g. "figures 021826.webp"
 }
 
 function pruneGallery() {
@@ -19,8 +30,10 @@ function pruneGallery() {
     const removed = [];
     const kept = [];
 
+    // Build a set of all canonical base names in this category
+    const allFiles = new Set(entries.map((e) => e.file && e.file.toLowerCase()).filter(Boolean));
+
     for (const entry of entries) {
-      // Drop malformed entries (no file field)
       if (!entry || !entry.file) {
         removed.push({ reason: "malformed", entry });
         continue;
@@ -34,10 +47,29 @@ function pruneGallery() {
         continue;
       }
 
-      // Drop entries whose display field is not canonical MM/DD/YY
+      // Drop non-canonical display entries (ghost entries from pre-parser runs)
       if (!isCanonicalDisplay(entry.display)) {
         removed.push({ reason: `non-canonical display: "${entry.display}"`, entry });
         continue;
+      }
+
+      // Drop orphaned suffix entries whose base file doesn't exist in the gallery
+      // e.g. "figures 021826b.webp" where "figures 021826.webp" is NOT in the gallery
+      // This catches accidental b/c/d entries from double-sync runs
+      const base = getSuffixBase(entry.file);
+      if (base && !allFiles.has(base.toLowerCase())) {
+        removed.push({ reason: `orphaned suffix (base not in gallery): ${base}`, entry });
+        continue;
+      }
+
+      // Drop suffixed entries whose processed file doesn't exist on disk
+      // This catches b/c/d entries that were never actually converted
+      if (base) {
+        const outputPath = getOutputPath(category, entry.file);
+        if (!fs.existsSync(outputPath)) {
+          removed.push({ reason: `suffixed entry with no local file`, entry });
+          continue;
+        }
       }
 
       seenFiles.add(fileKey);
@@ -51,7 +83,6 @@ function pruneGallery() {
   return { report, pruned };
 }
 
-// Find remote files that are not referenced in the clean gallery
 async function findOrphans(pruned) {
   const orphans = [];
 
@@ -95,7 +126,6 @@ async function runPrune(dryRun = true) {
   const { report, pruned } = pruneGallery();
   const totalRemoved = printReport(report);
 
-  // Check for remote orphans
   console.log("\n[prune] checking for remote orphans...");
   const orphans = await findOrphans(pruned);
 
@@ -119,7 +149,6 @@ async function runPrune(dryRun = true) {
     return;
   }
 
-  // Apply gallery cleanup
   if (totalRemoved > 0) {
     writeGalleryJSON(pruned);
     console.log("\n[prune] gallery.json updated locally.");
@@ -135,7 +164,6 @@ async function runPrune(dryRun = true) {
     }
   }
 
-  // Delete remote orphans
   if (orphans.length > 0 && !config.safeMode) {
     console.log("\n[prune] deleting remote orphans...");
     const paths = orphans.map((o) => o.path);

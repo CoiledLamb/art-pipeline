@@ -36,7 +36,7 @@ async function getFileState(category, outputName, outputPath, dateData) {
   const gallery = readGalleryJSON();
 
   const galleryExists = gallery[category].some(
-    (entry) => entry.date === dateData.iso,
+    (entry) => entry.file && entry.file.toLowerCase() === outputName.toLowerCase(),
   );
 
   return {

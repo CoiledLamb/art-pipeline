@@ -46,6 +46,34 @@ async function getFileState(category, outputName, outputPath, dateData) {
   };
 }
 
+// If a gallery entry already exists for the base output name, append a letter
+// suffix (b, c, d...) until we find an unused name. This supports multiple
+// drawings on the same day with the same display date.
+function resolveOutputName(category, baseOutputName) {
+  const gallery = readGalleryJSON();
+  const entries = gallery[category] || [];
+  const taken = new Set(entries.map((e) => e.file && e.file.toLowerCase()));
+
+  if (!taken.has(baseOutputName.toLowerCase())) {
+    return baseOutputName;
+  }
+
+  // baseOutputName is e.g. "figures 021826.webp"
+  const ext = ".webp";
+  const stem = baseOutputName.slice(0, -ext.length); // "figures 021826"
+
+  for (let i = 1; i < 26; i++) {
+    const suffix = String.fromCharCode(97 + i); // b, c, d...
+    const candidate = `${stem}${suffix}${ext}`;
+    if (!taken.has(candidate.toLowerCase())) {
+      console.log(`[info] same-day collision: ${baseOutputName} → ${candidate}`);
+      return candidate;
+    }
+  }
+
+  throw new Error(`Too many same-day entries for ${baseOutputName}`);
+}
+
 async function reconcileFile(sourcePath) {
   if (!isSupportedInputFile(sourcePath)) return;
 
@@ -56,10 +84,13 @@ async function reconcileFile(sourcePath) {
     return;
   }
 
-  const { baseName, category, outputName, dateData } = meta;
+  const { baseName, category, dateData } = meta;
 
   if (isPrivateCategory(category)) return;
   if (!isValidCategory(category)) return;
+
+  // Resolve final output name, accounting for same-day collisions
+  const outputName = resolveOutputName(category, meta.outputName);
 
   const outputDir = getOutputDir(category);
   ensureDir(outputDir);

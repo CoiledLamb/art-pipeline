@@ -4,8 +4,10 @@ const path = require("path");
 
 const config = require("./config");
 const { reconcileFile } = require("./process-file");
+const { runPrune } = require("./prune");
 
 const mode = process.argv[2] || "watch";
+const flags = process.argv.slice(3);
 
 async function runSync() {
   console.log("sync mode");
@@ -20,7 +22,7 @@ async function runSync() {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
-      // 🚫 skip private folder entirely
+      // skip private folder entirely
       if (entry.name.toLowerCase() === "private") {
         continue;
       }
@@ -52,7 +54,7 @@ function runWatch() {
       },
     })
     .on("add", async (filePath) => {
-      // 🚫 skip anything inside /private
+      // skip anything inside /private
       if (filePath.toLowerCase().includes(`${path.sep}private${path.sep}`)) {
         return;
       }
@@ -76,9 +78,17 @@ async function main() {
     return;
   }
 
+  if (mode === "prune") {
+    const dryRun = !flags.includes("--confirm");
+    await runPrune(dryRun);
+    return;
+  }
+
   console.error(`Unknown mode: ${mode}`);
   console.log("Use: node index.js watch");
   console.log("Use: node index.js sync");
+  console.log("Use: node index.js prune");
+  console.log("Use: node index.js prune --confirm");
   process.exit(1);
 }
 

@@ -46,7 +46,7 @@ function Write-Menu {
     Write-Host (ColorText "#86c7c9" "3. Start local figures preview server")
     Write-Host (ColorText "#54bcc3" "4. Open local figures page in browser")
     Write-Host (ColorText "#159fa5" "5. Open live Neocities figures page")
-    Write-Host (ColorText "#d74200" "6. Prune (placeholder)")
+    Write-Host (ColorText "#d74200" "6. Prune gallery.json")
     Write-Host (ColorText "#888888" "7. Exit")
     Write-Host ""
 
@@ -137,10 +137,8 @@ function Start-LocalPreviewServer {
     Write-Host (ColorText "#FFFFFF" "Browser URL: $LocalFiguresUrl")
     Write-Host ""
 
-    # Start server in a NEW PowerShell window
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$SiteDir'; python -m http.server $LocalPort"
 
-    # Open browser
     Start-Sleep -Milliseconds 500
     Start-Process $LocalFiguresUrl
 
@@ -156,19 +154,46 @@ function Open-LiveFigures {
     Start-Process $NeocitiesFiguresUrl
 }
 
-function Show-PrunePlaceholder {
-    Write-Header "PRUNE MODE"
-    Write-Host (ColorText "#d74200" "Prune is not implemented yet.")
+function Run-Prune {
+    Write-Header "PRUNE GALLERY.JSON"
+
+    Write-Host (ColorText "#FFFFFF" "Running dry-run first to show what would be removed...")
     Write-Host ""
-    Write-Host (ColorText "#FFFFFF" "When added, it should:")
-    Write-Host (ColorText "#FFFFFF" " - default to dry-run")
-    Write-Host (ColorText "#FFFFFF" " - show exactly what would be removed")
-    Write-Host (ColorText "#FFFFFF" " - require explicit confirmation before deletion")
+
+    Push-Location $PipelineDir
+    try {
+        node index.js prune
+    }
+    finally {
+        Pop-Location
+    }
+
     Write-Host ""
-    Write-Host (ColorText "#FFFFFF" "Suggested future confirmation flow:")
-    Write-Host (ColorText "#888888" "  1. node index.js prune --dry-run")
-    Write-Host (ColorText "#888888" "  2. review output")
-    Write-Host (ColorText "#888888" "  3. type DELETE to continue")
+    $confirm = Read-Host (ColorText "#d74200" "Type DELETE to apply, or anything else to cancel")
+
+    if ($confirm -eq "DELETE") {
+        $timestamp = Get-Timestamp
+        $logFile = Join-Path $LogDir "prune_${timestamp}.log"
+
+        Write-Host ""
+        Write-Host (ColorText "#FFFFFF" "Applying prune...")
+
+        Push-Location $PipelineDir
+        try {
+            cmd /c "node index.js prune --confirm 2>&1" | Tee-Object -FilePath $logFile
+        }
+        finally {
+            Pop-Location
+        }
+
+        Write-Host ""
+        Write-Host (ColorText "#FFFFFF" "Done. Log saved to: $logFile")
+    }
+    else {
+        Write-Host ""
+        Write-Host (ColorText "#888888" "Cancelled. No changes made.")
+    }
+
     Pause-Return
 }
 
@@ -208,7 +233,7 @@ while ($true) {
         }
 
         "6" {
-            Show-PrunePlaceholder
+            Run-Prune
         }
 
         "7" {

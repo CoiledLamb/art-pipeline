@@ -1,4 +1,6 @@
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
+const { uploadGalleryJSON } = require("./neocities");
+const config = require("./config");
 
 // Canonical display format is always MM/DD/YY — two digit month, two digit day, two digit year
 function isCanonicalDisplay(display) {
@@ -85,7 +87,19 @@ async function runPrune(dryRun = true) {
   }
 
   writeGalleryJSON(pruned);
-  console.log("\n[prune] gallery.json updated.");
+  console.log("\n[prune] gallery.json updated locally.");
+
+  if (!config.safeMode) {
+    console.log("\n[prune] uploading gallery.json to neocities...");
+    const ok = await uploadGalleryJSON(config.galleryJsonPath);
+    if (ok) {
+      console.log("[prune] gallery.json uploaded successfully.");
+    } else {
+      console.error("[prune] gallery.json upload failed. local file is clean but remote is out of sync.");
+    }
+  } else {
+    console.log("[prune] safeMode is on — skipping neocities upload.");
+  }
 }
 
 module.exports = { runPrune };

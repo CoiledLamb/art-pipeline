@@ -43,11 +43,12 @@ function Write-Menu {
 
     Write-Host (ColorText "#FFFFFF" "1. Watch pipeline")
     Write-Host (ColorText "#c3d7d3" "2. Sync pipeline")
-    Write-Host (ColorText "#86c7c9" "3. Start local figures preview server")
-    Write-Host (ColorText "#54bcc3" "4. Open local figures page in browser")
-    Write-Host (ColorText "#159fa5" "5. Open live Neocities figures page")
-    Write-Host (ColorText "#d74200" "6. Prune gallery.json")
-    Write-Host (ColorText "#888888" "7. Exit")
+    Write-Host (ColorText "#86c7c9" "3. Clean sync (wipes processed/ and gallery.json first)")
+    Write-Host (ColorText "#54bcc3" "4. Start local figures preview server")
+    Write-Host (ColorText "#2ba3a8" "5. Open local figures page in browser")
+    Write-Host (ColorText "#159fa5" "6. Open live Neocities figures page")
+    Write-Host (ColorText "#d74200" "7. Prune gallery.json")
+    Write-Host (ColorText "#888888" "8. Exit")
     Write-Host ""
 
     Write-Host (ColorText "#FFFFFF" "Pipeline repo: $PipelineDir")
@@ -154,6 +155,29 @@ function Open-LiveFigures {
     Start-Process $NeocitiesFiguresUrl
 }
 
+function Run-CleanSync {
+    Write-Header "CLEAN SYNC"
+
+    Write-Host (ColorText "#d74200" "WARNING: This will wipe processed/ and reset gallery.json before syncing.")
+    Write-Host (ColorText "#FFFFFF" "All images will be re-converted and re-uploaded from incoming/.")
+    Write-Host ""
+    $confirm = Read-Host (ColorText "#d74200" "Type CLEAN to proceed, or anything else to cancel")
+
+    if ($confirm -eq "CLEAN") {
+        Run-LoggedCommand `
+            -WorkingDir $PipelineDir `
+            -DisplayName "CLEAN SYNC" `
+            -CommandLine "node index.js sync --clean" `
+            -LogPrefix "sync_clean" `
+            -LongRunning $false
+    }
+    else {
+        Write-Host ""
+        Write-Host (ColorText "#888888" "Cancelled. No changes made.")
+        Pause-Return
+    }
+}
+
 function Run-Prune {
     Write-Header "PRUNE GALLERY.JSON"
 
@@ -221,22 +245,26 @@ while ($true) {
         }
 
         "3" {
-            Start-LocalPreviewServer
+            Run-CleanSync
         }
 
         "4" {
-            Open-LocalFigures
+            Start-LocalPreviewServer
         }
 
         "5" {
-            Open-LiveFigures
+            Open-LocalFigures
         }
 
         "6" {
-            Run-Prune
+            Open-LiveFigures
         }
 
         "7" {
+            Run-Prune
+        }
+
+        "8" {
             break
         }
 

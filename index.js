@@ -9,7 +9,29 @@ const { runPrune } = require("./prune");
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
 
-async function runSync() {
+function cleanForSync() {
+  // Wipe processed/ subdirectories
+  for (const category of config.validCategories) {
+    const dir = path.join(config.outputDir, category);
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.log(`[clean] removed: ${dir}`);
+    }
+  }
+
+  // Reset gallery.json to empty
+  const empty = JSON.stringify({ figures: [], hands: [], general: [] }, null, 2) + "\n";
+  fs.writeFileSync(config.galleryJsonPath, empty, "utf8");
+  console.log(`[clean] reset: ${config.galleryJsonPath}`);
+}
+
+async function runSync(clean = false) {
+  if (clean) {
+    console.log("\n[clean] wiping processed/ and gallery.json before sync...");
+    cleanForSync();
+    console.log("[clean] done.\n");
+  }
+
   console.log("sync mode");
   console.log(`input dir: ${config.inputDir}`);
 
@@ -74,7 +96,8 @@ async function main() {
   }
 
   if (mode === "sync") {
-    await runSync();
+    const clean = flags.includes("--clean");
+    await runSync(clean);
     return;
   }
 
@@ -87,6 +110,7 @@ async function main() {
   console.error(`Unknown mode: ${mode}`);
   console.log("Use: node index.js watch");
   console.log("Use: node index.js sync");
+  console.log("Use: node index.js sync --clean");
   console.log("Use: node index.js prune");
   console.log("Use: node index.js prune --confirm");
   process.exit(1);

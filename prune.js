@@ -1,11 +1,9 @@
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
-const { extractDateData } = require("./metadata");
 
-// Canonical filename format is always: "category MMDDYY.webp" (6-digit, zero-padded)
-function isCanonicalFilename(file) {
-  if (!file) return false;
-  // Match: word(s) + space + exactly 6 digits + .webp
-  return /^.+\s\d{6}\.webp$/.test(file);
+// Canonical display format is always MM/DD/YY — two digit month, two digit day, two digit year
+function isCanonicalDisplay(display) {
+  if (!display) return false;
+  return /^\d{2}\/\d{2}\/\d{2}$/.test(display);
 }
 
 function pruneGallery() {
@@ -14,8 +12,7 @@ function pruneGallery() {
   const pruned = {};
 
   for (const [category, entries] of Object.entries(data)) {
-    const seenDates = new Map(); // iso date -> index in kept[]
-    const seenFiles = new Set(); // canonical filenames already kept
+    const seenFiles = new Set();
     const removed = [];
     const kept = [];
 
@@ -27,38 +24,17 @@ function pruneGallery() {
       }
 
       const fileKey = entry.file.toLowerCase();
-      const canonical = isCanonicalFilename(entry.file);
 
-      // Exact filename duplicate
+      // Drop exact filename duplicates
       if (seenFiles.has(fileKey)) {
         removed.push({ reason: "duplicate filename", entry });
         continue;
       }
 
-      // If this entry has a date, check for date conflicts
-      if (entry.date) {
-        if (seenDates.has(entry.date)) {
-          const existingIdx = seenDates.get(entry.date);
-          const existing = kept[existingIdx];
-          const existingCanonical = isCanonicalFilename(existing.file);
-
-          if (canonical && !existingCanonical) {
-            // This entry is canonical, existing is not — swap them
-            removed.push({ reason: "non-canonical duplicate date", entry: existing });
-            kept[existingIdx] = entry;
-            seenFiles.delete(existing.file.toLowerCase());
-            seenFiles.add(fileKey);
-          } else {
-            // Existing is canonical (or both are) — drop this one
-            removed.push({ reason: "duplicate date", entry });
-          }
-          continue;
-        }
-
-        seenDates.set(entry.date, kept.length);
-      } else if (!canonical) {
-        // Null date AND non-canonical filename — definitely junk
-        removed.push({ reason: "null date, non-canonical", entry });
+      // Drop entries whose display field is not canonical MM/DD/YY
+      // This catches ghost entries from pre-parser runs (e.g. "3/2/26", "figures 3226.webp")
+      if (!isCanonicalDisplay(entry.display)) {
+        removed.push({ reason: `non-canonical display: "${entry.display}"`, entry });
         continue;
       }
 

@@ -105,9 +105,43 @@ async function uploadGalleryJSON(galleryPath) {
   }
 }
 
+// Delete one or more remote files by their full remote paths
+// e.g. ["images/figures/figures 021626b.webp"]
+async function deleteFiles(remotePaths) {
+  if (!remotePaths || remotePaths.length === 0) return true;
+
+  const form = new FormData();
+  for (const p of remotePaths) {
+    form.append("filenames[]", p);
+  }
+
+  try {
+    const response = await fetch("https://neocities.org/api/delete", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${NEOCITIES_API_KEY}`,
+      },
+      body: form,
+    });
+
+    const result = await response.json();
+
+    if (result.result !== "success") {
+      console.error("❌ delete failed:", result);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("❌ delete request failed:", err);
+    return false;
+  }
+}
+
 module.exports = {
   listRemoteFolder,
   remoteFileExists,
   uploadFile,
   uploadGalleryJSON,
+  deleteFiles,
 };

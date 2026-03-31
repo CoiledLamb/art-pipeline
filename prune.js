@@ -1,5 +1,6 @@
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
-const { uploadGalleryJSON } = require("./neocities");
+const { uploadGalleryJSON, listRemoteFolder, deleteFiles } = require("./neocities");
+const { getRemoteImagePath } = require("./paths");
 const config = require("./config");
 
 // Canonical display format is always MM/DD/YY — two digit month, two digit day, two digit year
@@ -34,7 +35,6 @@ function pruneGallery() {
       }
 
       // Drop entries whose display field is not canonical MM/DD/YY
-      // This catches ghost entries from pre-parser runs (e.g. "3/2/26", "figures 3226.webp")
       if (!isCanonicalDisplay(entry.display)) {
         removed.push({ reason: `non-canonical display: "${entry.display}"`, entry });
         continue;
@@ -49,6 +49,26 @@ function pruneGallery() {
   }
 
   return { report, pruned };
+}
+
+// Find remote files that are not referenced in the clean gallery
+async function findOrphans(pruned) {
+  const orphans = [];
+
+  for (const category of config.validCategories) {
+    const remoteFiles = await listRemoteFolder(category);
+    const galleryFiles = new Set(
+      (pruned[category] || []).map((e) => getRemoteImagePath(category, e.file).toLowerCase())
+    );
+
+    for (const remote of remoteFiles) {
+      if (!remote.is_directory && !galleryFiles.has(remote.path.toLowerCase())) {
+        orphans.push({ category, path: remote.path });
+      }
+    }
+  }
+
+  return orphans;
 }
 
 function printReport(report) {
@@ -75,8 +95,21 @@ async function runPrune(dryRun = true) {
   const { report, pruned } = pruneGallery();
   const totalRemoved = printReport(report);
 
-  if (totalRemoved === 0) {
-    console.log("[prune] nothing to remove. gallery is clean.");
+  // Check for remote orphans
+  console.log("\n[prune] checking for remote orphans...");
+  const orphans = await findOrphans(pruned);
+
+  if (orphans.length > 0) {
+    console.log(`\n[prune] orphaned remote files (${orphans.length}):`);
+    for (const o of orphans) {
+      console.log(`  - [orphan] ${o.path}`);
+    }
+  } else {
+    console.log("[prune] no remote orphans found.");
+  }
+
+  if (totalRemoved === 0 && orphans.length === 0) {
+    console.log("\n[prune] nothing to do. gallery and remote are clean.");
     return;
   }
 
@@ -86,19 +119,34 @@ async function runPrune(dryRun = true) {
     return;
   }
 
-  writeGalleryJSON(pruned);
-  console.log("\n[prune] gallery.json updated locally.");
+  // Apply gallery cleanup
+  if (totalRemoved > 0) {
+    writeGalleryJSON(pruned);
+    console.log("\n[prune] gallery.json updated locally.");
 
-  if (!config.safeMode) {
-    console.log("\n[prune] uploading gallery.json to neocities...");
-    const ok = await uploadGalleryJSON(config.galleryJsonPath);
-    if (ok) {
-      console.log("[prune] gallery.json uploaded successfully.");
-    } else {
-      console.error("[prune] gallery.json upload failed. local file is clean but remote is out of sync.");
+    if (!config.safeMode) {
+      console.log("[prune] uploading gallery.json to neocities...");
+      const ok = await uploadGalleryJSON(config.galleryJsonPath);
+      if (ok) {
+        console.log("[prune] gallery.json uploaded successfully.");
+      } else {
+        console.error("[prune] gallery.json upload failed. local file is clean but remote is out of sync.");
+      }
     }
-  } else {
-    console.log("[prune] safeMode is on — skipping neocities upload.");
+  }
+
+  // Delete remote orphans
+  if (orphans.length > 0 && !config.safeMode) {
+    console.log("\n[prune] deleting remote orphans...");
+    const paths = orphans.map((o) => o.path);
+    const ok = await deleteFiles(paths);
+    if (ok) {
+      console.log(`[prune] deleted ${paths.length} remote file(s).`);
+    } else {
+      console.error("[prune] remote deletion failed. some orphans may still exist.");
+    }
+  } else if (orphans.length > 0 && config.safeMode) {
+    console.log("[prune] safeMode is on — skipping remote deletion.");
   }
 }
 

@@ -105,12 +105,8 @@ function galleryEntryExists(data, category, entryOrFileName) {
   return data[category].some((item) => {
     if (!item) return false;
 
-    // Primary identity: date
-    if (incoming.date && item.date && item.date === incoming.date) {
-      return true;
-    }
-
-    // Fallback identity: filename
+    // Identity is filename only — date is metadata, not identity.
+    // This allows multiple entries on the same date (e.g. same-day collision suffixes).
     if (
       incoming.file &&
       item.file &&

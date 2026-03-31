@@ -29,7 +29,9 @@ function buildDateParts(mm, dd, yy) {
 
   return {
     iso: `20${yy}-${mm}-${dd}`,
-    display: `${Number(mm)}/${Number(dd)}/${yy}`,
+    // Use zero-padded strings directly — months 1-9 will show as 01-09,
+    // months 10-12 are already two digits and are unaffected
+    display: `${mm}/${dd}/${yy}`,
     canonical: `${mm}${dd}${yy}`,
     mm,
     dd,

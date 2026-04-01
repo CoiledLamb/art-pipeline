@@ -94,51 +94,60 @@ function chooseClosestCandidate(filePath, candidates) {
  * - 6 digits: MMDDYY
  * - 5 digits: MDDYY
  * - 4 digits: ambiguous; try MDDY and MDYY, use file timestamp as tiebreaker
+ *
+ * Also detects an optional trailing same-day suffix letter (b, c, d...)
+ * after the digits, e.g. "figures 21826b.png" → suffix "b"
  */
 function extractDateData(fileName, filePath) {
-  const digits = fileName
+  const stem = fileName
     .replace(/^(figure|figures|hand|hands|general)[\s_-]*/i, "")
-    .replace(/\D/g, "");
+    .replace(/\.[^.]+$/, ""); // strip extension
 
-  if (digits.length === 6) {
-    const mm = digits.slice(0, 2);
-    const dd = digits.slice(2, 4);
-    const yy = digits.slice(4, 6);
-    return buildDateParts(mm, dd, yy);
-  }
+  // Check for a trailing suffix letter (b-z) after the digits
+  const suffixMatch = stem.match(/^(\d+)([b-z])$/i);
+  const rawDigits = suffixMatch ? suffixMatch[1] : stem.replace(/\D/g, "");
+  const suffix = suffixMatch ? suffixMatch[2].toLowerCase() : null;
 
-  if (digits.length === 5) {
-    const mm = `0${digits.slice(0, 1)}`;
-    const dd = digits.slice(1, 3);
-    const yy = digits.slice(3, 5);
-    return buildDateParts(mm, dd, yy);
-  }
+  let dateData = null;
 
-  if (digits.length === 4) {
+  if (rawDigits.length === 6) {
+    const mm = rawDigits.slice(0, 2);
+    const dd = rawDigits.slice(2, 4);
+    const yy = rawDigits.slice(4, 6);
+    dateData = buildDateParts(mm, dd, yy);
+  } else if (rawDigits.length === 5) {
+    const mm = `0${rawDigits.slice(0, 1)}`;
+    const dd = rawDigits.slice(1, 3);
+    const yy = rawDigits.slice(3, 5);
+    dateData = buildDateParts(mm, dd, yy);
+  } else if (rawDigits.length === 4) {
     const candidates = [];
 
     // Option 1: MDDY -> 3|12|6 => 03/12/26
     {
-      const mm = `0${digits.slice(0, 1)}`;
-      const dd = digits.slice(1, 3);
-      const yy = `2${digits.slice(3, 4)}`;
+      const mm = `0${rawDigits.slice(0, 1)}`;
+      const dd = rawDigits.slice(1, 3);
+      const yy = `2${rawDigits.slice(3, 4)}`;
       const built = buildDateParts(mm, dd, yy);
       if (built) candidates.push(built);
     }
 
     // Option 2: MDYY -> 3|1|26 => 03/01/26
     {
-      const mm = `0${digits.slice(0, 1)}`;
-      const dd = `0${digits.slice(1, 2)}`;
-      const yy = digits.slice(2, 4);
+      const mm = `0${rawDigits.slice(0, 1)}`;
+      const dd = `0${rawDigits.slice(1, 2)}`;
+      const yy = rawDigits.slice(2, 4);
       const built = buildDateParts(mm, dd, yy);
       if (built) candidates.push(built);
     }
 
-    return chooseClosestCandidate(filePath, candidates);
+    dateData = chooseClosestCandidate(filePath, candidates);
   }
 
-  return null;
+  if (!dateData) return null;
+
+  // Attach the suffix so buildFileMetadata can include it in the output name
+  return { ...dateData, suffix };
 }
 
 function buildFileMetadata(filePath) {
@@ -151,7 +160,11 @@ function buildFileMetadata(filePath) {
     return null;
   }
 
-  const outputName = `${category} ${dateData.canonical}.webp`;
+  // If the source file has an explicit suffix (e.g. "21826b"), use it directly
+  // in the output name. This allows naming same-day files in incoming/ without
+  // relying on collision detection.
+  const suffixPart = dateData.suffix ? dateData.suffix : "";
+  const outputName = `${category} ${dateData.canonical}${suffixPart}.webp`;
 
   return {
     filePath,

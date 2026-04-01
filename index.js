@@ -5,12 +5,16 @@ const path = require("path");
 const config = require("./config");
 const { reconcileFile } = require("./process-file");
 const { runPrune } = require("./prune");
-const { readGalleryJSON } = require("./gallery");
+const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
+const { listRemoteFolder } = require("./neocities");
 
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
 
-function cleanForSync() {
+// Wipe processed/ subdirectories only.
+// gallery.json is rebuilt from remote state so remote: true is preserved
+// and images don't get re-uploaded unnecessarily.
+function cleanProcessed() {
   for (const category of config.validCategories) {
     const dir = path.join(config.outputDir, category);
     if (fs.existsSync(dir)) {
@@ -18,16 +22,33 @@ function cleanForSync() {
       console.log(`[clean] removed: ${dir}`);
     }
   }
-
-  const empty = JSON.stringify({ figures: [], hands: [], general: [] }, null, 2) + "\n";
-  fs.writeFileSync(config.galleryJsonPath, empty, "utf8");
-  console.log(`[clean] reset: ${config.galleryJsonPath}`);
 }
 
-// Build the initial taken-names registry from the current gallery.
-// This ensures regular sync (without --clean) doesn't re-add entries
-// that are already correctly in the gallery, and collision detection
-// only fires for genuinely new same-day files.
+// Rebuild gallery.json from the remote Neocities file listing.
+// This gives us accurate remote state without re-uploading anything.
+async function rebuildGalleryFromRemote() {
+  console.log("[clean] rebuilding gallery.json from remote state...");
+
+  const gallery = {};
+
+  for (const category of config.validCategories) {
+    const remoteFiles = await listRemoteFolder(category);
+    gallery[category] = remoteFiles
+      .filter((f) => !f.is_directory && f.path.endsWith(".webp"))
+      .map((f) => {
+        const fileName = path.basename(f.path);
+        return {
+          file: fileName,
+          date: null,
+          display: fileName,
+        };
+      });
+  }
+
+  writeGalleryJSON(gallery);
+  console.log(`[clean] gallery.json rebuilt from remote (${Object.values(gallery).reduce((s, a) => s + a.length, 0)} entries).`);
+}
+
 function buildTakenNames() {
   const gallery = readGalleryJSON();
   const takenNames = new Map();
@@ -42,8 +63,9 @@ function buildTakenNames() {
 
 async function runSync(clean = false) {
   if (clean) {
-    console.log("\n[clean] wiping processed/ and gallery.json before sync...");
-    cleanForSync();
+    console.log("\n[clean] wiping processed/ and rebuilding gallery from remote...");
+    cleanProcessed();
+    await rebuildGalleryFromRemote();
     console.log("[clean] done.\n");
   }
 
@@ -55,7 +77,6 @@ async function runSync(clean = false) {
     process.exit(1);
   }
 
-  // Build taken-names registry once before the walk
   const takenNames = buildTakenNames();
 
   async function walk(dir) {
@@ -83,7 +104,6 @@ function runWatch() {
   console.log("watch mode");
   console.log(`input dir: ${config.inputDir}`);
 
-  // Watch mode gets its own per-session registry
   const takenNames = buildTakenNames();
 
   chokidar
@@ -128,8 +148,8 @@ async function main() {
 
   console.error(`Unknown mode: ${mode}`);
   console.log("Use: node index.js watch");
-  console.log("Use: node index.js sync");
-  console.log("Use: node index.js sync --clean");
+  console.log("Use: node index.js sync         (incremental, safe for adding new files)");
+  console.log("Use: node index.js sync --clean (wipes processed/, rebuilds gallery from remote)");
   console.log("Use: node index.js prune");
   console.log("Use: node index.js prune --confirm");
   process.exit(1);

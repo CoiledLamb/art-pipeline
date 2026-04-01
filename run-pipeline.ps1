@@ -41,20 +41,17 @@ function Get-Timestamp {
 function Write-Menu {
     Write-Header "ART PIPELINE LAUNCHER"
 
-    Write-Host (ColorText "#FFFFFF" "1. Watch pipeline")
-    Write-Host (ColorText "#c3d7d3" "2. Sync pipeline")
-    Write-Host (ColorText "#86c7c9" "3. Clean sync (wipes processed/ and gallery.json first)")
-    Write-Host (ColorText "#54bcc3" "4. Start local figures preview server")
-    Write-Host (ColorText "#2ba3a8" "5. Open local figures page in browser")
-    Write-Host (ColorText "#159fa5" "6. Open live Neocities figures page")
-    Write-Host (ColorText "#d74200" "7. Prune gallery.json")
-    Write-Host (ColorText "#888888" "8. Exit")
+    Write-Host (ColorText "#FFFFFF" "1. Watch   — watch incoming/ for new files")
+    Write-Host (ColorText "#c3d7d3" "2. Sync    — add new files from incoming/")
+    Write-Host (ColorText "#86c7c9" "3. Rebuild — wipe processed/, sync from scratch")
+    Write-Host (ColorText "#54bcc3" "4. Prune   — clean up gallery and remote orphans")
+    Write-Host (ColorText "#2ba3a8" "5. Preview — open local figures page")
+    Write-Host (ColorText "#159fa5" "6. Live    — open live Neocities page")
+    Write-Host (ColorText "#888888" "7. Exit")
     Write-Host ""
 
-    Write-Host (ColorText "#FFFFFF" "Pipeline repo: $PipelineDir")
-    Write-Host (ColorText "#FFFFFF" "Site repo:     $SiteDir")
-    Write-Host (ColorText "#FFFFFF" "Local page:    $LocalFiguresUrl")
-    Write-Host (ColorText "#FFFFFF" "Live page:     $NeocitiesFiguresUrl")
+    Write-Host (ColorText "#FFFFFF" "Pipeline: $PipelineDir")
+    Write-Host (ColorText "#FFFFFF" "Live:     $NeocitiesFiguresUrl")
     Write-Host ""
 }
 
@@ -98,8 +95,7 @@ function Run-LoggedCommand {
     }
 
     Write-Host ""
-    Write-Host (ColorText "#FFFFFF" "Finished. Log saved to:")
-    Write-Host (ColorText "#FFFFFF" $logFile)
+    Write-Host (ColorText "#FFFFFF" "Finished. Log saved to: $logFile")
 
     if ($LongRunning) {
         Write-Host ""
@@ -111,77 +107,31 @@ function Run-LoggedCommand {
     }
 }
 
-function Start-LocalPreviewServer {
-    if (!(Test-Path $SiteDir)) {
-        Write-Host "Site directory not found: $SiteDir" -ForegroundColor Red
-        Pause-Return
-        return
-    }
-
-    $figuresPath = Join-Path $SiteDir "figures.html"
-    if (!(Test-Path $figuresPath)) {
-        Write-Host "figures.html not found at: $figuresPath" -ForegroundColor Red
-        Pause-Return
-        return
-    }
-
-    if (!(Test-CommandExists "python")) {
-        Write-Host "Python was not found on PATH." -ForegroundColor Red
-        Write-Host "Install Python or switch this launcher to a Node static server." -ForegroundColor Yellow
-        Pause-Return
-        return
-    }
-
-    Write-Header "LOCAL FIGURES PREVIEW"
-
-    Write-Host (ColorText "#FFFFFF" "Starting local preview server in a new window...")
-    Write-Host (ColorText "#FFFFFF" "Browser URL: $LocalFiguresUrl")
+function Run-Rebuild {
+    Write-Header "REBUILD"
+    Write-Host (ColorText "#d74200" "This wipes processed/ and rebuilds gallery from remote state.")
+    Write-Host (ColorText "#FFFFFF" "Images already on Neocities will NOT be re-uploaded.")
     Write-Host ""
+    $confirm = Read-Host (ColorText "#d74200" "Type REBUILD to proceed, or anything else to cancel")
 
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$SiteDir'; python -m http.server $LocalPort"
-
-    Start-Sleep -Milliseconds 500
-    Start-Process $LocalFiguresUrl
-
-    Pause-Return
-}
-
-function Open-LocalFigures {
-    Start-Process $LocalFiguresUrl
-    Pause-Return
-}
-
-function Open-LiveFigures {
-    Start-Process $NeocitiesFiguresUrl
-}
-
-function Run-CleanSync {
-    Write-Header "CLEAN SYNC"
-
-    Write-Host (ColorText "#d74200" "WARNING: This will wipe processed/ and reset gallery.json before syncing.")
-    Write-Host (ColorText "#FFFFFF" "All images will be re-converted and re-uploaded from incoming/.")
-    Write-Host ""
-    $confirm = Read-Host (ColorText "#d74200" "Type CLEAN to proceed, or anything else to cancel")
-
-    if ($confirm -eq "CLEAN") {
+    if ($confirm -eq "REBUILD") {
         Run-LoggedCommand `
             -WorkingDir $PipelineDir `
-            -DisplayName "CLEAN SYNC" `
+            -DisplayName "REBUILD" `
             -CommandLine "node index.js sync --clean" `
-            -LogPrefix "sync_clean" `
+            -LogPrefix "sync_rebuild" `
             -LongRunning $false
     }
     else {
         Write-Host ""
-        Write-Host (ColorText "#888888" "Cancelled. No changes made.")
+        Write-Host (ColorText "#888888" "Cancelled.")
         Pause-Return
     }
 }
 
 function Run-Prune {
-    Write-Header "PRUNE GALLERY.JSON"
-
-    Write-Host (ColorText "#FFFFFF" "Running dry-run first to show what would be removed...")
+    Write-Header "PRUNE"
+    Write-Host (ColorText "#FFFFFF" "Running dry-run first...")
     Write-Host ""
 
     Push-Location $PipelineDir
@@ -198,10 +148,8 @@ function Run-Prune {
     if ($confirm -eq "DELETE") {
         $timestamp = Get-Timestamp
         $logFile = Join-Path $LogDir "prune_${timestamp}.log"
-
         Write-Host ""
         Write-Host (ColorText "#FFFFFF" "Applying prune...")
-
         Push-Location $PipelineDir
         try {
             cmd /c "node index.js prune --confirm 2>&1" | Tee-Object -FilePath $logFile
@@ -209,14 +157,32 @@ function Run-Prune {
         finally {
             Pop-Location
         }
-
         Write-Host ""
         Write-Host (ColorText "#FFFFFF" "Done. Log saved to: $logFile")
     }
     else {
         Write-Host ""
-        Write-Host (ColorText "#888888" "Cancelled. No changes made.")
+        Write-Host (ColorText "#888888" "Cancelled.")
     }
+
+    Pause-Return
+}
+
+function Open-Preview {
+    if (!(Test-CommandExists "python")) {
+        Write-Host "Python not found on PATH." -ForegroundColor Red
+        Pause-Return
+        return
+    }
+
+    Write-Header "LOCAL PREVIEW"
+    Write-Host (ColorText "#FFFFFF" "Starting preview server...")
+    Write-Host (ColorText "#FFFFFF" "URL: $LocalFiguresUrl")
+    Write-Host ""
+
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$SiteDir'; python -m http.server $LocalPort"
+    Start-Sleep -Milliseconds 500
+    Start-Process $LocalFiguresUrl
 
     Pause-Return
 }
@@ -229,45 +195,24 @@ while ($true) {
         "1" {
             Run-LoggedCommand `
                 -WorkingDir $PipelineDir `
-                -DisplayName "WATCH MODE" `
+                -DisplayName "WATCH" `
                 -CommandLine "node index.js watch" `
                 -LogPrefix "watch" `
                 -LongRunning $true
         }
-
         "2" {
             Run-LoggedCommand `
                 -WorkingDir $PipelineDir `
-                -DisplayName "SYNC MODE" `
+                -DisplayName "SYNC" `
                 -CommandLine "node index.js sync" `
                 -LogPrefix "sync" `
                 -LongRunning $false
         }
-
-        "3" {
-            Run-CleanSync
-        }
-
-        "4" {
-            Start-LocalPreviewServer
-        }
-
-        "5" {
-            Open-LocalFigures
-        }
-
-        "6" {
-            Open-LiveFigures
-        }
-
-        "7" {
-            Run-Prune
-        }
-
-        "8" {
-            break
-        }
-
+        "3" { Run-Rebuild }
+        "4" { Run-Prune }
+        "5" { Open-Preview }
+        "6" { Start-Process $NeocitiesFiguresUrl }
+        "7" { break }
         default {
             Write-Host ""
             Write-Host "Invalid option." -ForegroundColor Red

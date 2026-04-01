@@ -7,13 +7,17 @@ const { reconcileFile } = require("./process-file");
 const { runPrune } = require("./prune");
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
 const { listRemoteFolder } = require("./neocities");
+const { extractDateData } = require("./metadata");
 
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
 
-// Wipe processed/ subdirectories only.
-// gallery.json is rebuilt from remote state so remote: true is preserved
-// and images don't get re-uploaded unnecessarily.
+// Canonical filename format: "category MMDDYY.webp" or "category MMDDYYb.webp" etc.
+// Only files matching this pattern are considered valid remote entries.
+function isCanonicalRemoteFile(fileName) {
+  return /^.+\s\d{6}[a-z]?\.webp$/i.test(fileName);
+}
+
 function cleanProcessed() {
   for (const category of config.validCategories) {
     const dir = path.join(config.outputDir, category);
@@ -25,28 +29,46 @@ function cleanProcessed() {
 }
 
 // Rebuild gallery.json from the remote Neocities file listing.
-// This gives us accurate remote state without re-uploading anything.
+// Only includes canonical filenames (MMDDYY format) and uses the
+// parser to extract proper date/display metadata for each entry.
 async function rebuildGalleryFromRemote() {
   console.log("[clean] rebuilding gallery.json from remote state...");
 
   const gallery = {};
+  let total = 0;
+  let skipped = 0;
 
   for (const category of config.validCategories) {
     const remoteFiles = await listRemoteFolder(category);
-    gallery[category] = remoteFiles
-      .filter((f) => !f.is_directory && f.path.endsWith(".webp"))
-      .map((f) => {
-        const fileName = path.basename(f.path);
-        return {
-          file: fileName,
-          date: null,
-          display: fileName,
-        };
+
+    gallery[category] = [];
+
+    for (const f of remoteFiles) {
+      if (f.is_directory || !f.path.endsWith(".webp")) continue;
+
+      const fileName = path.basename(f.path);
+
+      if (!isCanonicalRemoteFile(fileName)) {
+        console.log(`[clean] skipping non-canonical remote file: ${fileName}`);
+        skipped++;
+        continue;
+      }
+
+      // Use parser to extract date metadata from the filename
+      const dateData = extractDateData(fileName);
+
+      gallery[category].push({
+        file: fileName,
+        date: dateData ? dateData.iso : null,
+        display: dateData ? dateData.display : fileName,
       });
+
+      total++;
+    }
   }
 
   writeGalleryJSON(gallery);
-  console.log(`[clean] gallery.json rebuilt from remote (${Object.values(gallery).reduce((s, a) => s + a.length, 0)} entries).`);
+  console.log(`[clean] gallery.json rebuilt: ${total} entries, ${skipped} non-canonical skipped.`);
 }
 
 function buildTakenNames() {

@@ -6,14 +6,13 @@ const config = require("./config");
 const { reconcileFile } = require("./process-file");
 const { runPrune } = require("./prune");
 const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
-const { listRemoteFolder } = require("./neocities");
+const { listRemoteFolder, uploadGalleryJSON } = require("./neocities");
 const { extractDateData } = require("./metadata");
 
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
 
 // Canonical filename format: "category MMDDYY.webp" or "category MMDDYYb.webp" etc.
-// Only files matching this pattern are considered valid remote entries.
 function isCanonicalRemoteFile(fileName) {
   return /^.+\s\d{6}[a-z]?\.webp$/i.test(fileName);
 }
@@ -28,9 +27,9 @@ function cleanProcessed() {
   }
 }
 
-// Rebuild gallery.json from the remote Neocities file listing.
-// Only includes canonical filenames (MMDDYY format) and uses the
-// parser to extract proper date/display metadata for each entry.
+// Rebuild gallery.json from remote Neocities file listing.
+// Only includes canonical filenames, uses parser for proper metadata,
+// and uploads the result to Neocities so the site stays in sync.
 async function rebuildGalleryFromRemote() {
   console.log("[clean] rebuilding gallery.json from remote state...");
 
@@ -40,7 +39,6 @@ async function rebuildGalleryFromRemote() {
 
   for (const category of config.validCategories) {
     const remoteFiles = await listRemoteFolder(category);
-
     gallery[category] = [];
 
     for (const f of remoteFiles) {
@@ -54,7 +52,6 @@ async function rebuildGalleryFromRemote() {
         continue;
       }
 
-      // Use parser to extract date metadata from the filename
       const dateData = extractDateData(fileName);
 
       gallery[category].push({
@@ -69,6 +66,17 @@ async function rebuildGalleryFromRemote() {
 
   writeGalleryJSON(gallery);
   console.log(`[clean] gallery.json rebuilt: ${total} entries, ${skipped} non-canonical skipped.`);
+
+  // Upload the rebuilt gallery.json to Neocities immediately
+  if (!config.safeMode) {
+    console.log("[clean] uploading rebuilt gallery.json to neocities...");
+    const ok = await uploadGalleryJSON(config.galleryJsonPath);
+    if (ok) {
+      console.log("[clean] gallery.json uploaded successfully.");
+    } else {
+      console.error("[clean] gallery.json upload failed — local is correct but remote may be stale.");
+    }
+  }
 }
 
 function buildTakenNames() {

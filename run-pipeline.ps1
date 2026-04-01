@@ -41,12 +41,12 @@ function Get-Timestamp {
 function Write-Menu {
     Write-Header "ART PIPELINE LAUNCHER"
 
-    Write-Host (ColorText "#FFFFFF" "1. Watch   — watch incoming/ for new files")
-    Write-Host (ColorText "#c3d7d3" "2. Sync    — add new files from incoming/")
-    Write-Host (ColorText "#86c7c9" "3. Rebuild — wipe processed/, sync from scratch")
-    Write-Host (ColorText "#54bcc3" "4. Prune   — clean up gallery and remote orphans")
-    Write-Host (ColorText "#2ba3a8" "5. Preview — open local figures page")
-    Write-Host (ColorText "#159fa5" "6. Live    — open live Neocities page")
+    Write-Host (ColorText "#FFFFFF" "1. Watch   - watch incoming/ for new files")
+    Write-Host (ColorText "#c3d7d3" "2. Sync    - add new files from incoming/")
+    Write-Host (ColorText "#86c7c9" "3. Rebuild - wipe processed/, sync from scratch")
+    Write-Host (ColorText "#54bcc3" "4. Prune   - clean up gallery and remote orphans")
+    Write-Host (ColorText "#2ba3a8" "5. Preview - open local figures page")
+    Write-Host (ColorText "#159fa5" "6. Live    - open live Neocities page")
     Write-Host (ColorText "#888888" "7. Exit")
     Write-Host ""
 
@@ -112,7 +112,7 @@ function Run-Rebuild {
     Write-Host (ColorText "#d74200" "This wipes processed/ and rebuilds gallery from remote state.")
     Write-Host (ColorText "#FFFFFF" "Images already on Neocities will NOT be re-uploaded.")
     Write-Host ""
-    $confirm = Read-Host (ColorText "#d74200" "Type REBUILD to proceed, or anything else to cancel")
+    $confirm = Read-Host "Type REBUILD to proceed, or anything else to cancel"
 
     if ($confirm -eq "REBUILD") {
         Run-LoggedCommand `
@@ -143,7 +143,7 @@ function Run-Prune {
     }
 
     Write-Host ""
-    $confirm = Read-Host (ColorText "#d74200" "Type DELETE to apply, or anything else to cancel")
+    $confirm = Read-Host "Type DELETE to apply, or anything else to cancel"
 
     if ($confirm -eq "DELETE") {
         $timestamp = Get-Timestamp

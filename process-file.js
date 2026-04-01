@@ -45,11 +45,19 @@ async function getFileState(category, outputName, outputPath, dateData) {
   };
 }
 
-// Resolve the output name for a file, using a shared in-memory registry
-// to track names claimed during this sync run. This prevents false collisions
-// when sync is run without --clean (gallery already has entries from last run).
+// Check if a file is already fully synced (in gallery AND remote).
+// If so, we skip collision detection entirely — no suffix needed.
+function isAlreadySynced(category, outputName) {
+  const gallery = readGalleryJSON();
+  return gallery[category].some(
+    (entry) => entry.file && entry.file.toLowerCase() === outputName.toLowerCase(),
+  );
+}
+
+// Resolve the output name for a genuinely NEW file, using a shared
+// in-memory registry that only tracks names added THIS session.
+// takenNames starts empty — it never contains pre-existing gallery entries.
 function resolveOutputName(category, baseOutputName, takenNames) {
-  // takenNames is a Map<category, Set<string>> passed in from the sync walk
   if (!takenNames.has(category)) {
     takenNames.set(category, new Set());
   }
@@ -93,7 +101,14 @@ async function reconcileFile(sourcePath, takenNames) {
   if (isPrivateCategory(category)) return;
   if (!isValidCategory(category)) return;
 
-  // Resolve final output name using the shared in-memory registry
+  // If the canonical output name is already in the gallery, this file
+  // is fully synced — skip it entirely, no suffix detection needed.
+  if (isAlreadySynced(category, meta.outputName)) {
+    console.log(`[skip] already synced: ${baseName}`);
+    return;
+  }
+
+  // Only new files reach here — resolve suffix only if needed this session
   const outputName = resolveOutputName(category, meta.outputName, takenNames);
 
   const outputDir = getOutputDir(category);

@@ -5,6 +5,10 @@ Thumbs.db
 # local/generated content
 processed/
 incoming/
+logs/
+
+# runtime-generated — not tracked in git
+gallery.json
 
 # secrets
 .env

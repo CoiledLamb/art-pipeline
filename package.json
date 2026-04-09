@@ -4,7 +4,12 @@
   "main": "pipeline.js",
   "scripts": {
     "start": "node pipeline.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "pm2:start": "pm2 start pipeline.js --name art-pipeline",
+    "pm2:stop": "pm2 stop art-pipeline",
+    "pm2:restart": "pm2 restart art-pipeline",
+    "pm2:logs": "pm2 logs art-pipeline",
+    "pm2:status": "pm2 status"
   },
   "dependencies": {
     "chokidar": "^3.5.3",

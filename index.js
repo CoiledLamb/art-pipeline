@@ -5,9 +5,10 @@ const path = require("path");
 const config = require("./config");
 const { reconcileFile } = require("./process-file");
 const { runPrune } = require("./prune");
-const { readGalleryJSON, writeGalleryJSON } = require("./gallery");
+const { readGalleryJSON, writeGalleryJSON, buildEntryMeta } = require("./gallery");
 const { listRemoteFolder, uploadGalleryJSON } = require("./neocities");
 const { extractDateData } = require("./metadata");
+const { generateAllPages } = require("./generate-pages");
 
 const mode = process.argv[2] || "watch";
 const flags = process.argv.slice(3);
@@ -28,8 +29,8 @@ function cleanProcessed() {
 }
 
 // Rebuild gallery.json from remote Neocities file listing.
-// Only includes canonical filenames, uses parser for proper metadata,
-// and uploads the result to Neocities so the site stays in sync.
+// Populates all metadata fields (slug, title, tags, source, session)
+// using the same parser and config defaults as new entries.
 async function rebuildGalleryFromRemote() {
   console.log("[clean] rebuilding gallery.json from remote state...");
 
@@ -53,11 +54,13 @@ async function rebuildGalleryFromRemote() {
       }
 
       const dateData = extractDateData(fileName);
+      const meta = buildEntryMeta(category, dateData);
 
       gallery[category].push({
         file: fileName,
         date: dateData ? dateData.iso : null,
         display: dateData ? dateData.display : fileName,
+        ...meta,
       });
 
       total++;
@@ -67,7 +70,6 @@ async function rebuildGalleryFromRemote() {
   writeGalleryJSON(gallery);
   console.log(`[clean] gallery.json rebuilt: ${total} entries, ${skipped} non-canonical skipped.`);
 
-  // Upload the rebuilt gallery.json to Neocities immediately
   if (!config.safeMode) {
     console.log("[clean] uploading rebuilt gallery.json to neocities...");
     const ok = await uploadGalleryJSON(config.galleryJsonPath);
@@ -128,6 +130,10 @@ async function runSync(clean = false) {
   }
 
   await walk(config.inputDir);
+
+  // Generate and upload individual drawing pages after every sync.
+  console.log("\n[pages] generating drawing pages...");
+  await generateAllPages();
 }
 
 function runWatch() {
@@ -152,6 +158,10 @@ function runWatch() {
 
       console.log(`detected new file: ${filePath}`);
       await reconcileFile(filePath, takenNames);
+
+      // Regenerate pages whenever a new file is added in watch mode.
+      console.log("\n[pages] generating drawing pages...");
+      await generateAllPages();
     })
     .on("error", (err) => {
       console.error("watcher error:", err);
@@ -176,10 +186,19 @@ async function main() {
     return;
   }
 
+  if (mode === "pages") {
+    // Standalone: node index.js pages
+    // Useful for regenerating all pages without a full sync.
+    console.log("[pages] generating drawing pages...");
+    await generateAllPages();
+    return;
+  }
+
   console.error(`Unknown mode: ${mode}`);
   console.log("Use: node index.js watch");
-  console.log("Use: node index.js sync         (incremental, safe for adding new files)");
-  console.log("Use: node index.js sync --clean (wipes processed/, rebuilds gallery from remote)");
+  console.log("Use: node index.js sync         (incremental)");
+  console.log("Use: node index.js sync --clean (wipes processed/, rebuilds from remote)");
+  console.log("Use: node index.js pages        (regenerate drawing pages only)");
   console.log("Use: node index.js prune");
   console.log("Use: node index.js prune --confirm");
   process.exit(1);

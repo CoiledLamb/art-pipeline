@@ -88,22 +88,61 @@ function writeGalleryJSON(data) {
   mirrorToSiteDir(jsonText);
 }
 
-function normalizeIncomingEntry(entryOrFileName) {
+// Derive the display title from parsed date data and category.
+// e.g. category="figures", display="04/07/26" -> "04/07/26 \u2014 figures"
+function buildTitle(category, dateData) {
+  if (!dateData) return category;
+  return `${dateData.display} \u2014 ${category}`;
+}
+
+// Derive a URL-safe slug from category and canonical date string.
+// e.g. category="figures", canonical="040726" -> "figures-040726"
+// Same-day suffix is preserved: canonical="040726b" -> "figures-040726b"
+function buildSlug(category, dateData) {
+  if (!dateData) return category;
+  const suffix = dateData.suffix || "";
+  return `${category}-${dateData.canonical}${suffix}`;
+}
+
+// Build the full set of derived metadata fields for a new entry.
+// Any fields already present on an incoming object are preserved
+// (allows manual overrides via future tooling).
+function buildEntryMeta(category, dateData, overrides = {}) {
+  const useSession = config.sessionCategories.includes(category);
+
+  return {
+    slug: overrides.slug ?? buildSlug(category, dateData),
+    title: overrides.title ?? buildTitle(category, dateData),
+    tags: overrides.tags ?? [category],
+    source: overrides.source ?? config.defaultSource,
+    session: overrides.session !== undefined
+      ? overrides.session
+      : (useSession ? config.defaultSession : null),
+  };
+}
+
+function normalizeIncomingEntry(entryOrFileName, category) {
   if (typeof entryOrFileName === "string") {
     const dateData = extractDateData(entryOrFileName);
+    const meta = buildEntryMeta(category || "general", dateData);
 
     return {
       file: entryOrFileName,
       date: dateData ? dateData.iso : null,
       display: dateData ? dateData.display : entryOrFileName,
+      ...meta,
     };
   }
 
   if (entryOrFileName && typeof entryOrFileName === "object") {
+    const dateData = extractDateData(entryOrFileName.file || "");
+    const meta = buildEntryMeta(category || "general", dateData, entryOrFileName);
+
     return {
       file: entryOrFileName.file ?? null,
-      date: entryOrFileName.date ?? null,
-      display: entryOrFileName.display ?? entryOrFileName.file ?? null,
+      date: entryOrFileName.date ?? (dateData ? dateData.iso : null),
+      display: entryOrFileName.display ?? (dateData ? dateData.display : entryOrFileName.file) ?? null,
+      ...meta,
     };
   }
 
@@ -111,15 +150,21 @@ function normalizeIncomingEntry(entryOrFileName) {
     file: null,
     date: null,
     display: null,
+    slug: null,
+    title: null,
+    tags: [],
+    source: config.defaultSource,
+    session: null,
   };
 }
 
 function galleryEntryExists(data, category, entryOrFileName) {
-  const incoming = normalizeIncomingEntry(entryOrFileName);
+  const incoming = normalizeIncomingEntry(entryOrFileName, category);
 
   return data[category].some((item) => {
     if (!item) return false;
 
+    // Identity is filename only.
     if (
       incoming.file &&
       item.file &&
@@ -134,7 +179,7 @@ function galleryEntryExists(data, category, entryOrFileName) {
 
 function addGalleryEntry(category, entryOrFileName) {
   const data = readGalleryJSON();
-  const entry = normalizeIncomingEntry(entryOrFileName);
+  const entry = normalizeIncomingEntry(entryOrFileName, category);
 
   if (!entry.file) {
     throw new Error("addGalleryEntry requires a valid file field");
@@ -151,6 +196,11 @@ function addGalleryEntry(category, entryOrFileName) {
     file: entry.file,
     date: entry.date,
     display: entry.display,
+    slug: entry.slug,
+    title: entry.title,
+    tags: entry.tags,
+    source: entry.source,
+    session: entry.session,
   });
 
   writeGalleryJSON(data);
@@ -166,6 +216,9 @@ module.exports = {
   normalizeGalleryShape,
   readGalleryJSON,
   writeGalleryJSON,
+  buildEntryMeta,
+  buildSlug,
+  buildTitle,
   galleryEntryExists,
   addGalleryEntry,
 };

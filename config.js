@@ -20,8 +20,7 @@ const config = {
   galleryJsonPath: path.join(ROOT_DIR, "gallery.json"),
 
   // Mirror target — gallery.json is copied here after every write.
-  // Set to null to disable mirroring (e.g. in CI where the site dir
-  // may not be present).
+  // Set to null to disable mirroring (e.g. in CI).
   siteDir: SITE_DIR,
   siteGalleryJsonPath: path.join(SITE_DIR, "gallery.json"),
 
@@ -34,6 +33,16 @@ const config = {
   outputExtension: ".webp",
 
   webpQuality: 85,
+
+  // Entry metadata defaults.
+  // source: shown on every drawing page's process sidebar.
+  defaultSource: "line of action",
+
+  // session: shown on drawing pages for these categories only.
+  // general and nsfw intentionally omitted — those pieces don't
+  // follow the timed class structure.
+  sessionCategories: ["figures", "hands"],
+  defaultSession: "class style, 30 min",
 };
 
 module.exports = config;

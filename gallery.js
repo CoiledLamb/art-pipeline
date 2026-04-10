@@ -61,16 +61,31 @@ function readGalleryJSON() {
   }
 }
 
+// Mirror gallery.json into the local site folder so the preview server
+// and artwork-calendar.html can fetch it without a Neocities deploy.
+// Silently skips if siteGalleryJsonPath is not configured or the
+// directory doesn't exist (e.g. CI environments).
+function mirrorToSiteDir(jsonText) {
+  if (!config.siteGalleryJsonPath) return;
+
+  try {
+    const siteDir = config.siteDir;
+    if (!fs.existsSync(siteDir)) return;
+    fs.writeFileSync(config.siteGalleryJsonPath, jsonText, "utf8");
+  } catch (err) {
+    console.warn("[warn] could not mirror gallery.json to site dir:", err.message);
+  }
+}
+
 function writeGalleryJSON(data) {
   const normalized = normalizeGalleryShape(data);
+  const jsonText = `${JSON.stringify(normalized, null, 2)}\n`;
   const tempPath = `${config.galleryJsonPath}.tmp`;
 
-  fs.writeFileSync(
-    tempPath,
-    `${JSON.stringify(normalized, null, 2)}\n`,
-    "utf8",
-  );
+  fs.writeFileSync(tempPath, jsonText, "utf8");
   fs.renameSync(tempPath, config.galleryJsonPath);
+
+  mirrorToSiteDir(jsonText);
 }
 
 function normalizeIncomingEntry(entryOrFileName) {
@@ -105,8 +120,6 @@ function galleryEntryExists(data, category, entryOrFileName) {
   return data[category].some((item) => {
     if (!item) return false;
 
-    // Identity is filename only — date is metadata, not identity.
-    // This allows multiple entries on the same date (e.g. same-day collision suffixes).
     if (
       incoming.file &&
       item.file &&

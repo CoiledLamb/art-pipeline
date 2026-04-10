@@ -1,14 +1,11 @@
 $PipelineDir = "C:\Users\venob\Downloads\art-pipeline"
-$SiteDir = "C:\Users\venob\Downloads\neocities-coiledlamb(1)"
+$SiteDir     = "C:\Users\venob\Downloads\neocities-coiledlamb(1)"
 
 $NeocitiesFiguresUrl = "https://coiledlamb.neocities.org/figures.html"
-$LocalPort = 3000
-$LocalFiguresUrl = "http://localhost:$LocalPort/figures.html"
+$LocalPort           = 3000
+$LocalFiguresUrl     = "http://localhost:$LocalPort/figures.html"
 
 $LogDir = Join-Path $PipelineDir "logs"
-if (!(Test-Path $LogDir)) {
-    New-Item -ItemType Directory -Path $LogDir | Out-Null
-}
 
 function ColorText($hex, $text) {
     $r = [Convert]::ToInt32($hex.Substring(1, 2), 16)
@@ -70,8 +67,16 @@ function Run-LoggedCommand {
         return
     }
 
+    # Ensure logs/ exists here, immediately before we need it.
+    # This covers cases where the script is invoked in a way that skips
+    # top-level statements (e.g. dot-sourced, called via cmd, or the
+    # working directory differs from $PipelineDir).
+    if (!(Test-Path $LogDir)) {
+        New-Item -ItemType Directory -Path $LogDir | Out-Null
+    }
+
     $timestamp = Get-Timestamp
-    $logFile = Join-Path $LogDir "${LogPrefix}_${timestamp}.log"
+    $logFile   = Join-Path $LogDir "${LogPrefix}_${timestamp}.log"
 
     Write-Header $DisplayName
     Write-Host (ColorText "#FFFFFF" "Working directory: $WorkingDir")
@@ -146,8 +151,12 @@ function Run-Prune {
     $confirm = Read-Host "Type DELETE to apply, or anything else to cancel"
 
     if ($confirm -eq "DELETE") {
+        # Ensure logs/ exists here too for the inline prune log path.
+        if (!(Test-Path $LogDir)) {
+            New-Item -ItemType Directory -Path $LogDir | Out-Null
+        }
         $timestamp = Get-Timestamp
-        $logFile = Join-Path $LogDir "prune_${timestamp}.log"
+        $logFile   = Join-Path $LogDir "prune_${timestamp}.log"
         Write-Host ""
         Write-Host (ColorText "#FFFFFF" "Applying prune...")
         Push-Location $PipelineDir

@@ -9,7 +9,6 @@ const path = require("path");
 
 const config = require("./config");
 const { readGalleryJSON } = require("./gallery");
-const { uploadFile } = require("./neocities");
 
 // Flatten all categories into one sorted-by-date array with category attached.
 function flattenGallery(gallery) {
@@ -52,6 +51,10 @@ function renderPage(entry, all) {
   const nearby = findNearby(all, entry);
 
   const imgPath = `/images/${entry.category}/${entry.file}`;
+
+  // Use the friendly display date (MM/DD/YY) in the nav counter and date field.
+  const displayDate = entry.display || entry.date || "";
+
   const tags = (entry.tags || [entry.category]).map(
     (t) => `<span class="art-tag">${t}</span>`
   ).join("\n          ");
@@ -64,7 +67,7 @@ function renderPage(entry, all) {
             </div>
             <div class="nearby-info">
               <div class="nearby-title">${n.title || n.file}</div>
-              <div class="nearby-date">${n.date || ""}</div>
+              <div class="nearby-date">${n.display || n.date || ""}</div>
             </div>
           </a>`).join("\n")
     : "<div class=\"nearby-empty\">no nearby pieces</div>";
@@ -94,13 +97,11 @@ function renderPage(entry, all) {
     #site.visible { opacity:1; }
     .art-page { padding:28px 32px 60px; box-sizing:border-box; }
 
-    /* breadcrumb */
     .breadcrumb { font-size:11px; color:#3a6a68; letter-spacing:0.06em; margin-bottom:16px; text-transform:lowercase; }
     .breadcrumb a { color:#7aa8a6; text-decoration:none; }
     .breadcrumb a:hover { color:#e0eeec; }
     .breadcrumb-sep { margin:0 5px; }
 
-    /* piece nav */
     .piece-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
     .piece-nav-btn {
       background:rgba(255,255,255,0.06); border:1px solid #1e5554; color:#b1c9c3;
@@ -112,10 +113,8 @@ function renderPage(entry, all) {
     .piece-nav-btn.disabled { opacity:0.25; pointer-events:none; }
     .piece-nav-counter { font-size:10px; color:#3a6a68; letter-spacing:0.06em; }
 
-    /* main layout */
     .piece-body { display:grid; grid-template-columns:1fr 220px; gap:20px; align-items:start; }
 
-    /* image */
     .piece-img-wrap {
       background:rgba(11,46,45,0.55); border:1px solid #1e5554; border-radius:2px;
       overflow:hidden; margin-bottom:14px;
@@ -123,7 +122,6 @@ function renderPage(entry, all) {
     .piece-img-wrap img { display:block; width:100%; height:auto; }
     .piece-img-note { font-size:10px; color:#3a6a68; text-align:center; margin-top:6px; letter-spacing:0.04em; }
 
-    /* title block */
     .piece-title { font-size:clamp(1.1rem,2vw,1.6rem); color:#e0eeec; text-transform:lowercase; margin:0 0 4px; font-weight:600; }
     .piece-date { font-size:11px; color:#3a6a68; letter-spacing:0.06em; margin-bottom:10px; }
     .piece-tags { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; }
@@ -135,7 +133,6 @@ function renderPage(entry, all) {
     }
     .cal-backlink:hover { border-color:#40a4b9; color:#e0eeec; }
 
-    /* sidebar */
     .piece-sidebar { display:flex; flex-direction:column; gap:14px; }
     .glass { background:rgba(11,46,45,0.55); border:1px solid #1e5554; border-radius:2px; }
     .sidebar-panel { padding:13px 14px; }
@@ -144,7 +141,6 @@ function renderPage(entry, all) {
     .proc-key { font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:#3a6a68; margin-bottom:1px; }
     .proc-val { font-size:11px; color:#b1c9c3; text-transform:lowercase; }
 
-    /* nearby */
     .nearby-item {
       display:flex; gap:8px; align-items:flex-start; padding:5px;
       border-radius:2px; text-decoration:none; transition:background 0.1s;
@@ -190,7 +186,7 @@ function renderPage(entry, all) {
         <a class="piece-nav-btn${prev ? "" : " disabled"}" href="${prev ? prev.slug + ".html" : "#"}">
           \u2039 prev
         </a>
-        <span class="piece-nav-counter">${entry.date || ""}</span>
+        <span class="piece-nav-counter">${displayDate}</span>
         <a class="piece-nav-btn${next ? "" : " disabled"}" href="${next ? next.slug + ".html" : "#"}">
           next \u203a
         </a>
@@ -204,7 +200,7 @@ function renderPage(entry, all) {
           <div class="piece-img-note">${entry.file}</div>
 
           <h1 class="piece-title">${entry.title || entry.file}</h1>
-          <div class="piece-date">${entry.date || ""}</div>
+          <div class="piece-date">${displayDate}</div>
           <div class="piece-tags">
           ${tags}
           </div>

@@ -1,11 +1,11 @@
 {
   "name": "art-pipeline",
   "version": "1.0.0",
-  "main": "pipeline.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node pipeline.js",
+    "start": "node index.js watch",
     "dev": "node server.js",
-    "pm2:start": "pm2 start pipeline.js --name art-pipeline",
+    "pm2:start": "pm2 start index.js --name art-pipeline -- watch",
     "pm2:stop": "pm2 stop art-pipeline",
     "pm2:restart": "pm2 restart art-pipeline",
     "pm2:logs": "pm2 logs art-pipeline",

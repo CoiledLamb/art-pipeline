@@ -10,6 +10,8 @@ const path = require("path");
 const config = require("./config");
 const { readGalleryJSON } = require("./gallery");
 
+const UTTERANCES_REPO = 'CoiledLamb/neocities-coiledlamb-1-';
+
 // Flatten all categories into one sorted-by-date array with category attached.
 function flattenGallery(gallery) {
   const all = [];
@@ -157,6 +159,11 @@ function renderPage(entry, all) {
     .nearby-date { font-size:9px; color:#3a6a68; }
     .nearby-empty { font-size:10px; color:#3a6a68; }
 
+    /* utterances theming — blend into the page */
+    .utterances { max-width:100% !important; }
+    .comments-section { margin-top:28px; padding-top:20px; border-top:1px solid #1e5554; }
+    .comments-label { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#3a6a68; margin:0 0 14px; }
+
     @media(max-width:640px) { .piece-body { grid-template-columns:1fr; } .art-page { padding:16px 14px 40px; } }
   </style>
 </head>
@@ -205,6 +212,18 @@ function renderPage(entry, all) {
           ${tags}
           </div>
           <a class="cal-backlink" href="../artwork-calendar.html">\u2190 calendar</a>
+
+          <div class="comments-section">
+            <p class="comments-label">comments</p>
+            <script
+              src="https://utteranc.es/client.js"
+              repo="${UTTERANCES_REPO}"
+              issue-term="pathname"
+              theme="dark-blue"
+              crossorigin="anonymous"
+              async>
+            <\/script>
+          </div>
         </div>
 
         <div class="piece-sidebar">
@@ -221,13 +240,13 @@ function renderPage(entry, all) {
     </div>
   </div>
 
-  <script src="../boot.js"></script>
+  <script src="../boot.js"><\/script>
   <script>
     document.addEventListener('keydown', function(e) {
       if (document.getElementById('boot').style.display !== 'none') dismissBoot();
     });
     startBoot();
-  </script>
+  <\/script>
 </body>
 </html>
 `;

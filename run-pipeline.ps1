@@ -42,9 +42,10 @@ function Write-Menu {
     Write-Host (ColorText "#c3d7d3" "2. Sync    - add new files from incoming/")
     Write-Host (ColorText "#86c7c9" "3. Rebuild - wipe processed/, sync from scratch")
     Write-Host (ColorText "#54bcc3" "4. Prune   - clean up gallery and remote orphans")
-    Write-Host (ColorText "#2ba3a8" "5. Preview - open local figures page")
-    Write-Host (ColorText "#159fa5" "6. Live    - open live Neocities page")
-    Write-Host (ColorText "#888888" "7. Exit")
+    Write-Host (ColorText "#2ba3a8" "5. Pages   - regenerate all drawing pages")
+    Write-Host (ColorText "#159fa5" "6. Preview - open local figures page")
+    Write-Host (ColorText "#0d8a8f" "7. Live    - open live Neocities page")
+    Write-Host (ColorText "#888888" "8. Exit")
     Write-Host ""
 
     Write-Host (ColorText "#FFFFFF" "Pipeline: $PipelineDir")
@@ -67,10 +68,6 @@ function Run-LoggedCommand {
         return
     }
 
-    # Ensure logs/ exists here, immediately before we need it.
-    # This covers cases where the script is invoked in a way that skips
-    # top-level statements (e.g. dot-sourced, called via cmd, or the
-    # working directory differs from $PipelineDir).
     if (!(Test-Path $LogDir)) {
         New-Item -ItemType Directory -Path $LogDir | Out-Null
     }
@@ -151,7 +148,6 @@ function Run-Prune {
     $confirm = Read-Host "Type DELETE to apply, or anything else to cancel"
 
     if ($confirm -eq "DELETE") {
-        # Ensure logs/ exists here too for the inline prune log path.
         if (!(Test-Path $LogDir)) {
             New-Item -ItemType Directory -Path $LogDir | Out-Null
         }
@@ -219,9 +215,17 @@ while ($true) {
         }
         "3" { Run-Rebuild }
         "4" { Run-Prune }
-        "5" { Open-Preview }
-        "6" { Start-Process $NeocitiesFiguresUrl }
-        "7" { break }
+        "5" {
+            Run-LoggedCommand `
+                -WorkingDir $PipelineDir `
+                -DisplayName "PAGES" `
+                -CommandLine "node index.js pages" `
+                -LogPrefix "pages" `
+                -LongRunning $false
+        }
+        "6" { Open-Preview }
+        "7" { Start-Process $NeocitiesFiguresUrl }
+        "8" { break }
         default {
             Write-Host ""
             Write-Host "Invalid option." -ForegroundColor Red

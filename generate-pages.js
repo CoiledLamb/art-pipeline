@@ -10,8 +10,12 @@ const path = require("path");
 const config = require("./config");
 const { readGalleryJSON } = require("./gallery");
 
-const UTTERANCES_REPO = 'CoiledLamb/neocities-coiledlamb-1-';
-const UTTERANCES_CUSTOM_CSS = 'https://coiledlamb.neocities.org/utterances-custom.css';
+// Giscus config
+const GISCUS_REPO        = 'CoiledLamb/neocities-coiledlamb-1-';
+const GISCUS_REPO_ID     = 'R_kgDORxkvuA';
+const GISCUS_CATEGORY    = 'General';
+const GISCUS_CATEGORY_ID = 'DIC_kwDORxkvuM4C6shB';
+const GISCUS_THEME       = 'https://coiledlamb.neocities.org/giscus-custom.css';
 
 // Flatten all categories into one sorted-by-date array with category attached.
 function flattenGallery(gallery) {
@@ -160,7 +164,7 @@ function renderPage(entry, all) {
     .nearby-date { font-size:9px; color:#3a6a68; }
     .nearby-empty { font-size:10px; color:#3a6a68; }
 
-    .utterances { max-width:100% !important; }
+    .giscus { max-width:100% !important; }
     .comments-section { margin-top:28px; padding-top:20px; border-top:1px solid #1e5554; }
     .comments-label { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#3a6a68; margin:0 0 14px; }
 
@@ -215,12 +219,19 @@ function renderPage(entry, all) {
 
           <div class="comments-section">
             <p class="comments-label">comments</p>
-            <script
-              src="https://utteranc.es/client.js"
-              repo="${UTTERANCES_REPO}"
-              issue-term="pathname"
-              theme="boxy-light"
-              data-custom-css="${UTTERANCES_CUSTOM_CSS}"
+            <script src="https://giscus.app/client.js"
+              data-repo="${GISCUS_REPO}"
+              data-repo-id="${GISCUS_REPO_ID}"
+              data-category="${GISCUS_CATEGORY}"
+              data-category-id="${GISCUS_CATEGORY_ID}"
+              data-mapping="pathname"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="${GISCUS_THEME}"
+              data-lang="en"
+              data-loading="lazy"
               crossorigin="anonymous"
               async>
             <\/script>

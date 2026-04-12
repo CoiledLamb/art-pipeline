@@ -11,6 +11,7 @@ const config = require("./config");
 const { readGalleryJSON } = require("./gallery");
 
 const UTTERANCES_REPO = 'CoiledLamb/neocities-coiledlamb-1-';
+const UTTERANCES_CUSTOM_CSS = 'https://coiledlamb.neocities.org/utterances-custom.css';
 
 // Flatten all categories into one sorted-by-date array with category attached.
 function flattenGallery(gallery) {
@@ -159,7 +160,6 @@ function renderPage(entry, all) {
     .nearby-date { font-size:9px; color:#3a6a68; }
     .nearby-empty { font-size:10px; color:#3a6a68; }
 
-    /* utterances theming — blend into the page */
     .utterances { max-width:100% !important; }
     .comments-section { margin-top:28px; padding-top:20px; border-top:1px solid #1e5554; }
     .comments-label { font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#3a6a68; margin:0 0 14px; }
@@ -219,7 +219,8 @@ function renderPage(entry, all) {
               src="https://utteranc.es/client.js"
               repo="${UTTERANCES_REPO}"
               issue-term="pathname"
-              theme="dark-blue"
+              theme="boxy-light"
+              data-custom-css="${UTTERANCES_CUSTOM_CSS}"
               crossorigin="anonymous"
               async>
             <\/script>
